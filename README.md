@@ -1,5 +1,8 @@
 # Telegram Bulk Media Downloader
 
+[![GitHub Release](https://img.shields.io/github/v/release/vinodkr494/telegram-media-downloader?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases/latest)
+[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/vinodkr494/telegram-media-downloader/total?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases)
+
 Telegram Bulk Media Downloader is a Python-based tool that allows users to download various types of media files (videos, images, PDFs, ZIPs, etc.) from Telegram channels and groups. The downloader supports resumable downloads, batch processing, and progress tracking, making it ideal for managing large volumes of media efficiently.
 
 ## Features
@@ -28,6 +31,16 @@ Here are some screenshots demonstrating the new v2.0 Telegram Downloader UI:
 -   Telegram API credentials (API ID and API Hash)
 
 ## Installation
+
+### Method 1: Download the Executable (Recommended)
+
+1. Go to the [Releases](https://github.com/vinodkr494/telegram-media-downloader/releases) page.
+2. Download the latest `TGDownloader-vX.X.X-Windows.exe` (or your respective OS version).
+3. Run the executable directly. No installation or Python required!
+
+*Note: Windows might show a "Smart App Control" warning because the executable is newly built and unsigned. Click **More info** -> **Run anyway** to launch it.*
+
+### Method 2: Run from Source (For Developers)
 
 1. Clone the repository:
 
