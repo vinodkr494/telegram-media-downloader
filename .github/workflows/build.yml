@@ -35,7 +35,7 @@ jobs:
 
       - name: Build executable
         run: |
-          pyinstaller --noconfirm --onedir --windowed --add-data "src/assets:assets" --name "TGDownloader" src/gui.py
+          python -c "import PyInstaller.__main__; import os; PyInstaller.__main__.run(['--noconfirm', '--onedir', '--windowed', '--paths', 'src', f'--add-data=src/assets{os.pathsep}assets', '--hidden-import', 'core_downloader', '--hidden-import', 'telethon', '--name', 'TGDownloader', 'src/gui.py'])"
 
       - name: Prepare Artifact (Unix)
         if: runner.os != 'Windows'
