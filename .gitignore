@@ -1,4 +1,10 @@
-venv/*
+venv/
 .env
-test.session
-test.session-journal
+.env.local
+*.session
+*.session-journal
+active_tasks.json
+download_state.json
+downloads/
+__pycache__/
+*.pyc

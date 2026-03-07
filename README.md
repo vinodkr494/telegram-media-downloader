@@ -4,18 +4,23 @@ Telegram Bulk Media Downloader is a Python-based tool that allows users to downl
 
 ## Features
 
+-   **Brand New UI (v2.0)**: Modern, sleek CustomTkinter interface with sidebar navigation and beautiful status cards.
+-   **Cross-platform Executables**: Standalone executables automatically built via GitHub Actions for Windows, Linux, and macOS.
+-   **Persistent Queue**: Your download queue and progress is automatically saved to disk and restored upon restarting the app.
 -   **Batch Processing**: Downloads media in configurable batches for better resource management.
 -   **Multi-Media Support**: Supports videos, images, PDFs, ZIP files, and more.
--   **Progress Tracking**: Displays detailed progress bars for each download.
--   **Configurable Settings**: Easily customizable batch size and session settings via `.env` file.
--   **Cross-Platform**: Runs on Windows, macOS, and Linux.
--   **Lightweight**: Requires only Python and a few libraries to run.
+-   **Progress Tracking**: Displays detailed itemized progress bars for each download along with speed (KB/s).
+-   **Settings Management**: Configure your download folder and active download limits directly from the GUI.
+-   **Cross-Platform**: Runs natively on Windows, macOS, and Linux.
+-   **Lightweight**: Requires only Python and a few lightweight libraries to run.
 
 ## Screenshots
 
-Here are some screenshots demonstrating the tool in action:
-![Download Progress](screenshots/download_image.jpg)
-![Download Progress](screenshots/pdf_download.jpg)
+Here are some screenshots demonstrating the new v2.0 Telegram Downloader UI:
+
+![Login Screen](screenshots/app_v2_login.png)
+![Phone Number Verification](screenshots/phone_verification.png)
+![Home View - Active Queue](screenshots/app_v2.png)
 
 ## Requirements
 
@@ -46,24 +51,28 @@ Here are some screenshots demonstrating the tool in action:
     BATCH_SIZE=5
     ```
 
-4. Run the script:
+4. Run the GUI application:
     ```bash
-    python src/downloader.py
+    python src/gui.py
     ```
 
 ## Usage
 
-1. **Start the script**:
+1. **Start the GUI script**:
 
     ```bash
-    python src/downloader.py
+    python src/gui.py
     ```
 
-2. Enter the Telegram channel username or group link when prompted.
+    *(Alternatively, you can still use the CLI version with `python src/downloder.py`)*
 
-3. Select the type of media to download (e.g., videos, images, PDFs).
+2. Enter your API credentials and the Telegram channel username or **Channel ID** (e.g. `-100123456789`).
 
-4. Watch as your files are downloaded with detailed progress bars!
+6. Select the type of media to download (e.g., images, videos, audio, PDFs, ZIPs, or all).
+
+7. Click "＋ Add to Queue". If this is your first time connecting, you will be prompted to enter your phone number and the login code sent to your Telegram app.
+
+8. Watch as your files are downloaded with detailed progress bars dynamically in the UI! You can go to the **Downloads** tab to see previously added channels and inspect individual file statuses.
 
 ## Advanced Configuration
 
@@ -87,15 +96,10 @@ The tool supports the following media types:
 
 ## Roadmap
 
-### Version 1.1
-
--   **Resumable Downloads**: Automatically resumes downloads from where they stopped.
--   Add support for audio files.
--   Retry mechanism for failed downloads.
-
-### Version 2.0
-
--   Build a GUI for non-technical users.
+### Version 2.1
+-   Add support for specific date-range filtering.
+-   Add file size limits before downloading.
+-   Enhanced error retry mechanisms.
 
 ## Contributing
 
