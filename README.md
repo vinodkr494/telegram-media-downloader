@@ -109,10 +109,13 @@ The tool supports the following media types:
 
 ## Roadmap
 
-### Version 2.1
--   Add support for specific date-range filtering.
--   Add file size limits before downloading.
--   Enhanced error retry mechanisms.
+### Version 2.1+ (Upcoming)
+-   **Granular Media Filtering**: Selectively choose whether to download Images, Videos, or Documents.
+-   **Advanced Range Filtering**: Download media by Date Ranges (e.g., last 30 days) or specific Message ID ranges.
+-   **Proxy Support**: Native GUI support for MTProto and SOCKS5 proxies to bypass regional restrictions.
+-   **Batch Import (TXT)**: Load multiple channel IDs/links from a `.txt` file into the active queue.
+-   **Intelligent Auto-Retry**: Automatically pause and retry failed downloads or API rate limits.
+-   **Theme Toggle**: Manually switch between Light and Dark mode directly from the application Settings.
 
 ## Contributing
 
