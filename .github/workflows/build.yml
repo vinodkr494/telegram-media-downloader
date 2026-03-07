@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           cd src
-          python -c "import PyInstaller.__main__; import os; PyInstaller.__main__.run(['--noconfirm', '--onefile', '--windowed', f'--add-data=assets{os.pathsep}assets', '--hidden-import', 'core_downloader', '--hidden-import', 'telethon', '--name', f'TGDownloader-v{os.environ[\"VERSION\"]}-${{ runner.os }}', 'gui.py'])"
+          python -c "import PyInstaller.__main__; import os; PyInstaller.__main__.run(['--noconfirm', '--onefile', '--windowed', f'--add-data=assets{os.pathsep}assets', '--icon=assets/logo.ico', '--hidden-import', 'core_downloader', '--hidden-import', 'telethon', '--name', f'TGDownloader-v{os.environ[\"VERSION\"]}-${{ runner.os }}', 'gui.py'])"
           cd ..
 
       - name: Rename Executable (Windows)
