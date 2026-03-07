@@ -44,16 +44,18 @@ jobs:
       - name: Build executable
         shell: bash
         run: |
-          python -c "import PyInstaller.__main__; import os; PyInstaller.__main__.run(['--noconfirm', '--onefile', '--windowed', '--paths', 'src', f'--add-data=src/assets{os.pathsep}assets', '--hidden-import', 'core_downloader', '--hidden-import', 'telethon', '--name', f'TGDownloader-v{os.environ[\"VERSION\"]}-${{ runner.os }}', 'src/gui.py'])"
+          cd src
+          python -c "import PyInstaller.__main__; import os; PyInstaller.__main__.run(['--noconfirm', '--onefile', '--windowed', f'--add-data=assets{os.pathsep}assets', '--hidden-import', 'core_downloader', '--hidden-import', 'telethon', '--name', f'TGDownloader-v{os.environ[\"VERSION\"]}-${{ runner.os }}', 'gui.py'])"
+          cd ..
 
       - name: Rename Executable (Windows)
         if: runner.os == 'Windows'
         run: |
-          cd dist
+          cd src/dist
           Rename-Item -Path "TGDownloader-v${{ env.VERSION }}-${{ runner.os }}.exe" -NewName "TGDownloader-v${{ env.VERSION }}-Windows.exe"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: TGDownloader-v${{ env.VERSION }}-${{ runner.os }}
-          path: dist/TGDownloader-v${{ env.VERSION }}-*
+          path: src/dist/TGDownloader-v${{ env.VERSION }}-*
