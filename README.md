@@ -163,22 +163,7 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 
 ## Roadmap
 
-### v2.4 — Advanced Filtering & Range Downloads
-- 🗓️ **Date Range Filter** — download only media from the last N days or between two dates
-- 🔢 **Message ID Range** — specify start/end message IDs to narrow the download scope
-- 🔍 **Filename Pattern Filter** — regex/glob-based filter on filenames before queuing
-- 📅 **Scheduled Downloads** — queue a channel to auto-download at a set time
-
-### v2.5 — Batch & Import
-- 📄 **Batch Import (TXT)** — load multiple channel usernames/IDs from a `.txt` file
-- 📦 **Queue Management** — re-order, prioritize, or remove individual files from the active queue
-- 🔄 **Auto-Sync Mode** — periodically check a channel for new media and download automatically
-
-### v3.0 — Power User Edition
-- 🧪 **Automated Tests** — full test suite for `core_downloader.py`
-- 🌐 **i18n / Localization** — multilingual UI support
-- 🖥️ **System Tray** — minimize to tray, background download notification
-- 🎙️ **In-app Update Checker** — notify when a new GitHub release is available
+Future improvements are tracked as [GitHub Issues](https://github.com/vinodkr494/telegram-media-downloader/issues). Have an idea? Open a feature request!
 
 ## ⚠️ Legal Disclaimer
 
