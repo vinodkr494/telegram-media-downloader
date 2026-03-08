@@ -157,9 +157,29 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 - **Empty State Screens** for Home and Downloads tabs
 - **Concurrent Download Slider** in Settings
 
+## ⚠️ Legal Disclaimer
+
+> [!CAUTION]
+> **This tool is intended for personal and legitimate use only.**
+>
+> - Only download content from channels and groups **you own or have explicit permission to access**.
+> - Respect Telegram's [Terms of Service](https://telegram.org/tos) at all times.
+> - Do **not** use this tool to infringe copyright, redistribute paid content, or violate anyone's privacy.
+> - The author and contributors are **not responsible** for any misuse, damages, or legal consequences arising from the use of this software.
+> - Use entirely at your own risk.
+
+This software interacts with Telegram's official API via [Telethon](https://github.com/LonamiWebs/Telethon). It does not bypass any Telegram security mechanisms.
+
+---
+
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
+We welcome contributions of all kinds! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) file for the full guide including:
+- Environment setup
+- Project architecture
+- Commit message conventions
+- PR checklist
+- Areas that need help
 
 ## License
 

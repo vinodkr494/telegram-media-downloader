@@ -645,6 +645,16 @@ class DownloaderApp(ctk.CTk):
         self.home_cards_frame = ctk.CTkFrame(body, fg_color="transparent")
         self.home_cards_frame.pack(fill="x")
 
+        # Empty state — hidden when first card is added
+        self.home_empty_label = ctk.CTkLabel(
+            body,
+            text="\U0001F4E5\n\nNo downloads yet\nEnter a channel above and click \"\U0001F50D Fetch Media\" to get started",
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            text_color=TEXT_MUTED,
+            justify="center"
+        )
+        self.home_empty_label.pack(pady=40)
+
     # ══════════════════════════════════════════════════════════════════════════════
     # DOWNLOADS VIEW  —  All channels with their downloaded files
     # ══════════════════════════════════════════════════════════════════════════════
@@ -687,6 +697,14 @@ class DownloaderApp(ctk.CTk):
                 if k in self.channel_cards[task_id]:
                     try: self.channel_cards[task_id][k].destroy()
                     except Exception: pass
+
+        # Hide empty state labels when first card is added
+        if hasattr(self, 'home_empty_label'):
+            try: self.home_empty_label.pack_forget()
+            except Exception: pass
+        if hasattr(self, 'dl_empty_label'):
+            try: self.dl_empty_label.pack_forget()
+            except Exception: pass
 
         MEDIA_LABELS = {1: "🖼 Images", 2: "🎬 Videos", 3: "📄 PDFs",
                         4: "🗜 ZIPs",   5: "🎵 Audio",  6: "📦 All Media"}
@@ -1231,21 +1249,43 @@ class DownloaderApp(ctk.CTk):
         ctk.CTkFrame(inner, fg_color=CARD_BDR, height=1).pack(fill="x", pady=24)
 
         features = [
-            ("📥", "Download images, videos, PDFs, audio, and more"),
-            ("⚡", "Concurrent downloads with pause / resume support"),
-            ("🔄", "Persistent queue — resumes after app restart"),
-            ("📁", "Custom download directory per channel"),
+            ("📥", "Media Browser — browse & filter by category before downloading"),
+            ("⚡", "Parallel fetch — all category filters load simultaneously"),
+            ("🔄", "Smart deduplication — skips already-downloaded files automatically"),
+            ("⏸", "Concurrent downloads with pause / resume & persistent queue"),
+            ("🔍", "Real-time search filter inside the Media Browser"),
+            ("🔔", "Toast notifications when a download queue completes"),
+            ("📁", "Custom download directories & speed cap per session"),
             ("🔒", "Secure Telegram session — credentials never stored in plain text"),
         ]
         for icon, text in features:
             row = ctk.CTkFrame(inner, fg_color="transparent")
-            row.pack(fill="x", pady=5)
-            ctk.CTkLabel(row, text=icon, font=ctk.CTkFont(size=18), width=30).pack(side="left")
+            row.pack(fill="x", pady=4)
+            ctk.CTkLabel(row, text=icon, font=ctk.CTkFont(size=18), width=32).pack(side="left")
             ctk.CTkLabel(
                 row, text=text,
-                font=ctk.CTkFont(family="Segoe UI", size=13),
+                font=ctk.CTkFont(family="Segoe UI", size=12),
                 text_color=TEXT_DARK, anchor="w"
             ).pack(side="left", padx=10, fill="x")
+
+        # Warning / Disclaimer
+        ctk.CTkFrame(inner, fg_color=CARD_BDR, height=1).pack(fill="x", pady=20)
+        ctk.CTkLabel(
+            inner,
+            text="⚠️  Responsible Use Reminder",
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            text_color=ACCENT_AMBER
+        ).pack()
+        ctk.CTkLabel(
+            inner,
+            text="Only download content you have permission to access.\n"
+                 "Respect Telegram\'s Terms of Service and copyright laws.\n"
+                 "The author is not responsible for misuse of this tool.",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=TEXT_MUTED,
+            justify="center"
+        ).pack(pady=(4, 0))
+
 
         # GitHub Repo Link
         ctk.CTkFrame(inner, fg_color=CARD_BDR, height=1).pack(fill="x", pady=24)
@@ -1266,24 +1306,54 @@ class DownloaderApp(ctk.CTk):
         channel_input = self.search_entry.get().strip()
         if not channel_input:
             return
-            
-        # Optional full-screen UI lock while fetching
+
+        # Full-screen overlay
         self.loading_overlay = ctk.CTkFrame(self, fg_color="#0D1117", corner_radius=0)
         self.loading_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
-        
-        lbl = ctk.CTkLabel(
-            self.loading_overlay, text="Fetching Channel Metadata...\nThis may take a moment for large channels.",
-            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-            text_color="#C9D1D9"
+
+        self._spinner_label = ctk.CTkLabel(
+            self.loading_overlay,
+            text="⠋  Fetching Channel Media…",
+            font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+            text_color="#2AABEE"
         )
-        lbl.place(relx=0.5, rely=0.5, anchor="center")
-        
+        self._spinner_label.place(relx=0.5, rely=0.46, anchor="center")
+
+        ctk.CTkLabel(
+            self.loading_overlay,
+            text="All categories load in parallel — this should be fast ⚡",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color="#64748B"
+        ).place(relx=0.5, rely=0.53, anchor="center")
+
+        self._spinner_running = True
+        self._spinner_idx = 0
+        self._spinner_tick()
+
         self.fetch_btn.configure(text="Fetching…", state="disabled")
         threading.Thread(
             target=self.run_fetch_media_thread,
             args=(channel_input,),
             daemon=True
         ).start()
+
+    _SPINNER_CHARS = list("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+
+    def _spinner_tick(self):
+        if not getattr(self, '_spinner_running', False): return
+        if not hasattr(self, '_spinner_label'): return
+        try:
+            char = self._SPINNER_CHARS[self._spinner_idx % len(self._SPINNER_CHARS)]
+            self._spinner_label.configure(text=f"{char}  Fetching Channel Media…")
+            self._spinner_idx += 1
+            self.after(80, self._spinner_tick)
+        except Exception:
+            pass
+
+    def _stop_spinner(self):
+        self._spinner_running = False
+        if hasattr(self, 'loading_overlay') and self.loading_overlay.winfo_exists():
+            self.loading_overlay.destroy()
         
     def run_fetch_media_thread(self, channel_input):
         future = asyncio.run_coroutine_threadsafe(
@@ -1301,18 +1371,16 @@ class DownloaderApp(ctk.CTk):
         try:
             channel = await fetch_channel(self.client, channel_input)
             categories = await fetch_categorized_media(self.client, channel, limit=500)
-            self.after(0, lambda: self.show_media_browser_modal(channel, channel_input, categories, loading_overlay=self.loading_overlay))
+            self.after(0, lambda: self.show_media_browser_modal(channel, channel_input, categories))
         except Exception as e:
             import traceback
             traceback.print_exc()
             print(f"Fetch Error: {e}")
-            if hasattr(self, 'loading_overlay') and self.loading_overlay.winfo_exists():
-                self.loading_overlay.destroy()
+            self.after(0, self._stop_spinner)
             self.after(0, lambda: self.fetch_btn.configure(text="🔍 Fetch Media", state="normal"))
             
-    def show_media_browser_modal(self, channel, channel_input, categories, loading_overlay=None):
-        if loading_overlay and loading_overlay.winfo_exists():
-            loading_overlay.destroy()
+    def show_media_browser_modal(self, channel, channel_input, categories):
+        self._stop_spinner()
         self.fetch_btn.configure(text="🔍 Fetch Media", state="normal")
         
         modal = ctk.CTkToplevel(self)
@@ -1321,68 +1389,105 @@ class DownloaderApp(ctk.CTk):
         modal.grab_set()
         
         tabview = ctk.CTkTabview(modal)
-        tabview.pack(fill="both", expand=True, padx=20, pady=(20, 10))
-        
-        self.selected_media_to_download = {} # dict of msg.id -> msg
-        # track stringvars for checkboxes to Select All
-        category_vars = {}
-        
+        tabview.pack(fill="both", expand=True, padx=20, pady=(20, 5))
+
+        self.selected_media_to_download = {}
+        category_vars = {}  # {cat_name: [(var, msg, row_frame, name_lower)]}
+        total_across_all = sum(len(msgs) for msgs in categories.values() if msgs)
+
+        # ── Live selection counter (sits between tab and bottom buttons) ──
+        selection_lbl = ctk.CTkLabel(
+            modal, text=f"0 of {total_across_all} files selected",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=TEXT_MUTED
+        )
+        selection_lbl.pack(pady=(0, 2))
+
+        def update_selection_label():
+            count = sum(v.get() for entries in category_vars.values() for v, *_ in entries)
+            selection_lbl.configure(
+                text=f"{count} of {total_across_all} files selected",
+                text_color=ACCENT_GREEN if count > 0 else TEXT_MUTED
+            )
+
         for cat_name, msgs in categories.items():
             if not msgs: continue
             tab = tabview.add(f"{cat_name} ({len(msgs)})")
             category_vars[cat_name] = []
-            
-            # Select All button
+
+            # ── Select All / Clear All ──
             btn_frame = ctk.CTkFrame(tab, fg_color="transparent")
-            btn_frame.pack(fill="x", pady=5)
-            
+            btn_frame.pack(fill="x", pady=(5, 2))
+
             def make_select_all(c_name):
                 def select_all():
-                    for var, _ in category_vars[c_name]:
-                        var.set(1)
+                    for v, *_ in category_vars[c_name]: v.set(1)
+                    update_selection_label()
                 return select_all
 
             def make_clear_all(c_name):
                 def clear_all():
-                    for var, _ in category_vars[c_name]:
-                        var.set(0)
+                    for v, *_ in category_vars[c_name]: v.set(0)
+                    update_selection_label()
                 return clear_all
 
-            ctk.CTkButton(btn_frame, text="Select All", width=100, command=make_select_all(cat_name)).pack(side="left", padx=5)
-            ctk.CTkButton(btn_frame, text="Clear All", width=100, fg_color=BTN_HOVER, command=make_clear_all(cat_name)).pack(side="left", padx=5)
-            
+            ctk.CTkButton(btn_frame, text="Select All", width=100, command=make_select_all(cat_name)).pack(side="left", padx=(5, 4))
+            ctk.CTkButton(btn_frame, text="Clear All",  width=100, fg_color=BTN_HOVER, command=make_clear_all(cat_name)).pack(side="left")
+
+            # ── Search bar ──
+            search_var = ctk.StringVar()
+            ctk.CTkEntry(
+                tab, textvariable=search_var,
+                placeholder_text="\U0001F50D  Search files\u2026",
+                height=32, corner_radius=8, border_width=1
+            ).pack(fill="x", padx=5, pady=(2, 4))
+
             scroll_frame = ctk.CTkScrollableFrame(tab, fg_color=CARD_BG)
-            scroll_frame.pack(fill="both", expand=True, pady=5)
-            
+            scroll_frame.pack(fill="both", expand=True, pady=(0, 5))
+
+            rows_in_tab = []
+
             for m in msgs:
                 name = f"Message ID: {m.id}"
                 file_size = ""
-                has_thumb = False
                 if getattr(m, 'document', None):
                     if m.file and m.file.name: name = m.file.name
                     file_size = f" ({m.document.size // 1024} KB)"
-                    # Document thumbnails are supported if it's a video or has a thumb
-                    if getattr(m.document, 'thumbs', None) or getattr(m, 'video', None):
-                        has_thumb = True
                 elif getattr(m, 'video', None):
                     file_size = f" ({m.video.size // 1024} KB)"
-                    has_thumb = True
                 elif getattr(m, 'photo', None):
                     file_size = " (Photo)"
-                    has_thumb = True
-                    
+
                 display_text = f"{name}{file_size}\n{m.date.strftime('%Y-%m-%d %H:%M')}"
                 var = ctk.IntVar(value=0)
-                category_vars[cat_name].append((var, m))
-                
+
                 row_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
                 row_frame.pack(fill="x", pady=2, padx=5)
 
-                chk = ctk.CTkCheckBox(row_frame, text="", variable=var, width=24)
-                chk.pack(side="left", padx=(0, 5), pady=10)
+                def on_check(update=update_selection_label):
+                    update()
+
+                chk = ctk.CTkCheckBox(row_frame, text="", variable=var, command=on_check, width=24)
+                chk.pack(side="left", padx=(0, 5), pady=8)
 
                 lbl = ctk.CTkLabel(row_frame, text=display_text, justify="left", anchor="w", font=ctk.CTkFont(size=12))
-                lbl.pack(side="left", fill="x", expand=True, pady=5)
+                lbl.pack(side="left", fill="x", expand=True, pady=4)
+
+                category_vars[cat_name].append((var, m, row_frame, name.lower()))
+                rows_in_tab.append((row_frame, name.lower()))
+
+            # ── Search filter binding ──
+            def make_filter(rows, svar):
+                def do_filter(*_):
+                    q = svar.get().lower().strip()
+                    for rf, nm in rows:
+                        try:
+                            if not q or q in nm: rf.pack(fill="x", pady=2, padx=5)
+                            else: rf.pack_forget()
+                        except Exception: pass
+                return do_filter
+            search_var.trace_add("write", make_filter(rows_in_tab, search_var))
+
 
         # Bottom Actions
         bottom_frame = ctk.CTkFrame(modal, fg_color="transparent")
@@ -1395,7 +1500,7 @@ class DownloaderApp(ctk.CTk):
                 
             selected_msgs = []
             for cat_msgs in category_vars.values():
-                for var, msg in cat_msgs:
+                for var, msg, *_ in cat_msgs:  # var, msg, row_frame, name_lower
                     if var.get() == 1:
                         selected_msgs.append(msg)
             
@@ -1651,13 +1756,16 @@ class DownloaderApp(ctk.CTk):
             for pk in ("pb", "pb_d"):
                 if pk in el: el[pk].configure(progress_color=ACCENT_GREEN)
             for sk in ("badge_speed", "badge_speed_d"):
-                if sk in el: el[sk].configure(text="✓ Done", text_color=ACCENT_GREEN)
+                if sk in el: el[sk].configure(text="\u2713 Done", text_color=ACCENT_GREEN)
             for bk in ("btn_pause", "btn_pause_d"):
-                if bk in el: el[bk].configure(state="disabled", text="✓ Done")
+                if bk in el: el[bk].configure(state="disabled", text="\u2713 Done")
             for lk in ("status_lbl", "status_lbl_d"):
                 if lk in el: el[lk].configure(
                     text=f"Complete!  {completed} files downloaded", text_color=ACCENT_GREEN
                 )
+            # Fire toast notification
+            title = el.get("channel_input", "Download")
+            self.show_toast(f"\u2705  {el.get('channel_input', 'Download')} — all {completed} files complete!")
         else:
             for pk in ("pb", "pb_d"):
                 if pk in el: el[pk].configure(progress_color=ACCENT_GREEN)
@@ -1667,6 +1775,22 @@ class DownloaderApp(ctk.CTk):
                 if lk in el: el[lk].configure(
                     text=f"Downloaded  {completed} / {total} files", text_color=TEXT_MUTED
                 )
+
+    # ── Toast Notification ───────────────────────────────────────────────────────────────
+    def show_toast(self, message, duration_ms=3000):
+        """Show a brief success notification in the bottom-right corner."""
+        toast = ctk.CTkFrame(
+            self, fg_color="#1E293B", corner_radius=12,
+            border_width=1, border_color="#334155"
+        )
+        ctk.CTkLabel(
+            toast, text=message,
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            text_color="#F8FAFC",
+            padx=16, pady=10
+        ).pack()
+        toast.place(relx=1.0, rely=1.0, anchor="se", x=-20, y=-20)
+        self.after(duration_ms, lambda: toast.destroy() if toast.winfo_exists() else None)
 
     # ══════════════════════════════════════════════════════════════════════════════
     # LOGOUT
