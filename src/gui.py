@@ -13,7 +13,7 @@ from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
 
 TASKS_FILE = "active_tasks.json"
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 
 def load_tasks():
     if os.path.exists(TASKS_FILE):

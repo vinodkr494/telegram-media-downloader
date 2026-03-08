@@ -7,43 +7,45 @@ Telegram Bulk Media Downloader is a Python-based desktop app that lets you brows
 
 ---
 
-## ✨ What's New in v2.2
+## ✨ What's New in v2.3
 
-### 📂 Media Browser
-Browse your channel's entire media library **before** downloading. Filter by category (Media, Files, Music, Links, GIFs), use **Select All / Clear All**, and only queue the files you actually want.
+### 🌀 Animated Loading Spinner
+The "Fetch Media" overlay now shows a **braille animation** (`⠋⠙⤹⠸⠼⠴⠦⠧⠇⠏`) cycling every 80ms so the app never looks frozen during a channel scan.
 
-- Fetches all categories **in parallel** for fast load times
-- Tabs show live item counts per category (e.g. `Files (500)`)
-- Select individual files with checkboxes and click **Download Selected**
+### 🔍 Real-time Search in Media Browser
+A search bar at the top of each category tab filters file rows **live as you type**. Find a specific file among 500+ results instantly without scrolling.
 
-### 🔁 Smart File Deduplication
-Before downloading any file, the app checks if it already exists on disk at the correct file size. If it does, the file is silently skipped — saving time and bandwidth.
+### ✅ Live Selection Counter
+A `"X of Y files selected"` count bar sits between the file list and the Download button. It turns **green** as soon as you select files.
 
-### ⚡ Speed Limiter
-Set a maximum download speed (in KB/s) from the **Settings** panel using a slider. Useful when you want the downloads to run in the background without consuming all your bandwidth.
+### 🔔 Toast Notifications on Download Complete
+When a download queue finishes, a **dark pop-up** slides in from the bottom-right corner and auto-dismisses after 3 seconds.
 
-### 🐛 Core Stability Fixes
-- Fixed phantom "Download Paused" bug caused by raising `asyncio.CancelledError` inside Telethon progress callbacks
-- Fixed `sqlite3.OperationalError: database is locked` caused by Telethon's session SQLite being accessed from multiple threads
-- Fixed UI freezing due to flooding the Tkinter event queue with thousands of progress updates per second
-- Fixed `Select All` not including files when clicking `Download Selected`
+### 📥 Empty State Screens
+Home and Downloads tabs now show a friendly **placeholder illustration + helper text** instead of a blank page on fresh launch.
+
+### 🐛 Bug Fix: Modal Not Closing on Download
+Fixed a tuple-unpacking mismatch introduced in v2.3 that prevented `Download Selected` from closing the modal.
 
 ---
 
 ## Features
 
-- **Media Browser**: Category-based file browser — browse Photos, Videos, Documents, Music, and more before downloading
-- **Parallel Fetch**: All category filters run concurrently via `asyncio.gather` for near-instant channel scanning
-- **Smart Deduplication**: Skips already-downloaded files automatically by comparing file names and sizes
-- **Speed Limiter**: Configurable download speed cap (KB/s) to prevent bandwidth saturation
-- **Modern UI (v2.0+)**: Premium CustomTkinter interface with sidebar navigation, progress bars, and status cards
-- **Persistent Queue**: Download queue and progress automatically saved and restored on restart
-- **Batch Processing**: Configurable concurrent downloads (parallel streams)
-- **Multi-Media Support**: Videos, Images, PDFs, ZIP files, Audio, GIFs, and more
-- **Progress Tracking**: Per-file progress bars with live speed display (KB/s / MB/s)
-- **Proxy Support**: SOCKS4, SOCKS5, HTTP, and MTProto proxy configuration in Settings
-- **Theme Toggle**: Switch between Light and Dark mode from the Settings panel
-- **Cross-Platform Executables**: Standalone `.exe` / binaries via GitHub Actions for Windows, Linux, and macOS
+- 🌀 **Animated Spinner** — braille animation on the Fetch overlay — no more frozen screen
+- 🔍 **Media Browser Search** — live filter bar to find any file by name instantly
+- ✅ **Selection Counter** — "X of Y files selected" counter updates as you tick boxes
+- 🔔 **Toast Notifications** — bottom-right popup when a queue completes, auto-dismisses in 3s
+- 📥 **Empty State Screens** — friendly placeholders on Home and Downloads before any tasks are added
+- 📂 **Media Browser** — category-based file browser (Media, Files, Music, Links, GIFs)
+- ⚡ **Parallel Fetch** — all categories load simultaneously via `asyncio.gather` (~5x faster)
+- 🔁 **Smart Deduplication** — skips already-downloaded files by name and size
+- ⏸ **Concurrent Downloads** — configurable parallel streams with pause / resume support
+- 📊 **Per-file Progress Bars** — live speed display (KB/s / MB/s) per file
+- **Speed Limiter** — configurable max download speed in Settings
+- **Proxy Support** — SOCKS4, SOCKS5, HTTP, and MTProto configuration
+- **Theme Toggle** — Light and Dark mode from Settings
+- **Persistent Queue** — saves and restores on restart automatically
+- **Cross-Platform** — standalone executables for Windows, Linux, and macOS
 
 ## Screenshots
 
@@ -128,12 +130,23 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 
 ## Changelog
 
+### v2.3.0
+- ✅ Animated braille spinner on the Fetch Media overlay
+- ✅ Real-time search/filter bar inside every Media Browser tab
+- ✅ Live `"X of Y files selected"` counter (turns green when files are selected)
+- ✅ Toast notification on download queue completion (bottom-right, 3s auto-dismiss)
+- ✅ Empty state screens for Home and Downloads views on fresh launch
+- ✅ Fixed `Download Selected` modal not closing (tuple unpacking bug from v2.3 refactor)
+- ✅ Updated About screen with v2.3 features and responsible-use warning
+- ✅ Full `CONTRIBUTING.md` with setup guide, architecture, and PR checklist
+- ✅ Legal Disclaimer added to README
+
 ### v2.2.0
 - ✅ Added **Media Browser** with category tabs (Media, Files, Music, Links, GIFs)
-- ✅ Parallel category fetching using `asyncio.gather` (~5x faster)
+- ✅ Parallel category fetching with `asyncio.gather` (~5x faster)
 - ✅ Per-file **deduplication** (skip existing files at correct size)
 - ✅ **Speed Limiter** slider in Settings
-- ✅ Fixed immediate pause bug (`asyncio.CancelledError` in progress callback)
+- ✅ Fixed phantom pause bug (`asyncio.CancelledError` in progress callback)
 - ✅ Fixed `sqlite3 database is locked` crash on download start
 - ✅ Fixed `Select All` not properly queuing files for download
 - ✅ Fixed UI freeze caused by progress event flooding
@@ -150,12 +163,22 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 
 ## Roadmap
 
-### v2.3 (Upcoming)
-- **Animated Loading Spinner** on fetch overlay
-- **Search Filter** inside Media Browser
-- **Toast Notifications** when a download queue completes
-- **Empty State Screens** for Home and Downloads tabs
-- **Concurrent Download Slider** in Settings
+### v2.4 — Advanced Filtering & Range Downloads
+- 🗓️ **Date Range Filter** — download only media from the last N days or between two dates
+- 🔢 **Message ID Range** — specify start/end message IDs to narrow the download scope
+- 🔍 **Filename Pattern Filter** — regex/glob-based filter on filenames before queuing
+- 📅 **Scheduled Downloads** — queue a channel to auto-download at a set time
+
+### v2.5 — Batch & Import
+- 📄 **Batch Import (TXT)** — load multiple channel usernames/IDs from a `.txt` file
+- 📦 **Queue Management** — re-order, prioritize, or remove individual files from the active queue
+- 🔄 **Auto-Sync Mode** — periodically check a channel for new media and download automatically
+
+### v3.0 — Power User Edition
+- 🧪 **Automated Tests** — full test suite for `core_downloader.py`
+- 🌐 **i18n / Localization** — multilingual UI support
+- 🖥️ **System Tray** — minimize to tray, background download notification
+- 🎙️ **In-app Update Checker** — notify when a new GitHub release is available
 
 ## ⚠️ Legal Disclaimer
 
