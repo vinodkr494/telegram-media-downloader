@@ -2,11 +2,17 @@ import asyncio
 import os
 import sys
 import json
+import traceback
 from telethon import TelegramClient
 from telethon.tl.types import (
-    InputMessagesFilterVideo,
     InputMessagesFilterPhotos,
+    InputMessagesFilterVideo,
     InputMessagesFilterDocument,
+    InputMessagesFilterMusic,
+    InputMessagesFilterUrl,
+    InputMessagesFilterGif,
+    MessageMediaPhoto,
+    MessageMediaDocument
 )
 
 STATE_FILE = "download_state.json"
@@ -40,62 +46,108 @@ async def fetch_channel(client, channel_input):
     return channel
 import time
 
-async def download_single_file(message, folder_name, progress_cb=None, complete_cb=None, cancel_event=None):
-    try:
-        file_size = (
-            message.video.size if getattr(message, 'video', None)
-            else message.document.size if getattr(message, 'document', None) 
-            else message.audio.size if getattr(message, 'audio', None)
-            else getattr(message, 'size', 0)
-        )
-        
-        # Speed tracking variables
-        start_time = [time.time()]
-        last_bytes = [0]
-        
-        def internal_progress(current, total):
-            if cancel_event and cancel_event.is_set():
-                raise asyncio.CancelledError("Download Paused")
+async def download_single_file(message, folder_name, progress_cb=None, complete_cb=None, cancel_event=None, max_speed_kb=None):
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            file_size = (
+                message.video.size if getattr(message, 'video', None)
+                else message.document.size if getattr(message, 'document', None) 
+                else message.audio.size if getattr(message, 'audio', None)
+                else getattr(message, 'size', 0)
+            )
             
-            now = time.time()
-            elapsed = now - start_time[0]
-            speed_str = "0 KB/s"
+            # Deduplication Check
+            file_name = None
+            if getattr(message, 'file', None):
+                file_name = message.file.name or f"{message.file.id}{message.file.ext}"
             
-            # Update speed every 0.5s to avoid jitter
-            if elapsed >= 0.5:
-                bytes_diff = current - last_bytes[0]
-                speed_kb_s = (bytes_diff / elapsed) / 1024
+            if file_name:
+                expected_filepath = os.path.join(folder_name, file_name)
+                if os.path.exists(expected_filepath):
+                    existing_size = os.path.getsize(expected_filepath)
+                    if file_size and existing_size == file_size:
+                        if progress_cb:
+                            progress_cb(message.id, existing_size, existing_size, speed_str="Skipped (Exists)")
+                        if complete_cb:
+                            complete_cb(message.id, filepath=expected_filepath)
+                        return
+
+            # Speed tracking variables
+            start_time = [time.time()]
+            last_bytes = [0]
+            cancelled_by_event = [False]
+            
+            async def internal_progress(current, total):
+                # Use a flag instead of raise - raising CancelledError inside
+                # a Telethon progress callback causes it to propagate incorrectly
+                # through Telethon's own download pipeline
+                if cancel_event and cancel_event.is_set():
+                    cancelled_by_event[0] = True
+                    return  # Just return; we'll check the flag after download
                 
-                if speed_kb_s > 1024:
-                    speed_str = f"{(speed_kb_s/1024):.1f} MB/s"
-                else:
-                    speed_str = f"{sys.maxsize if speed_kb_s < 0 else int(speed_kb_s)} KB/s" if speed_kb_s < 0 else f"{int(speed_kb_s)} KB/s"
+                now = time.time()
+                elapsed = now - start_time[0]
+                speed_str = "0 KB/s"
                 
-                start_time[0] = now
-                last_bytes[0] = current
+                # Update speed every 0.1s to avoid jitter, and to allow for smoother throttling
+                if elapsed >= 0.1:
+                    bytes_diff = current - last_bytes[0]
+                    speed_kb_s = (bytes_diff / elapsed) / 1024
+                    
+                    # Throttling Logic
+                    if max_speed_kb and speed_kb_s > max_speed_kb:
+                        # compute how much time it *should* have taken
+                        expected_time = (bytes_diff / 1024) / max_speed_kb
+                        sleep_time = expected_time - elapsed
+                        if sleep_time > 0:
+                            await asyncio.sleep(sleep_time)
+                            now = time.time() # update now after sleeping
+                            elapsed = now - start_time[0]
+                            speed_kb_s = (bytes_diff / elapsed) / 1024
 
-            if progress_cb:
-                # telethon total could be None
-                progress_cb(message.id, current, total or file_size, speed_str=speed_str)
+                    if speed_kb_s > 1024:
+                        speed_str = f"{(speed_kb_s/1024):.1f} MB/s"
+                    else:
+                        speed_str = f"{sys.maxsize if speed_kb_s < 0 else int(speed_kb_s)} KB/s" if speed_kb_s < 0 else f"{int(speed_kb_s)} KB/s"
+                    
+                    start_time[0] = now
+                    last_bytes[0] = current
 
-        dir_path = os.path.join(folder_name, "") # Enforce trailing slash for Telethon directory matching
-        file_path = await message.download_media(
-            file=dir_path,
-            progress_callback=internal_progress,
-        )
-        if complete_cb:
-            complete_cb(message.id, filepath=file_path)
-            
-    except asyncio.CancelledError:
-        print(f"Download paused for message {message.id}")
-        if complete_cb:
-            complete_cb(message.id, paused=True, filepath=None)
-    except Exception as e:
-        print(f"Error downloading message {message.id}: {e}")
-        if complete_cb:
-            complete_cb(message.id, paused=False) # Marked as complete to not block pipeline
+                    if progress_cb:
+                        # telethon total could be None
+                        progress_cb(message.id, current, total or file_size, speed_str=speed_str)
 
-async def download_in_batches_headless(messages, folder_name, batch_size, downloaded_state, progress_cb, complete_cb, task_cancel_event=None):
+            dir_path = os.path.join(folder_name, "") # Enforce trailing slash for Telethon directory matching
+            file_path = await message.download_media(
+                file=dir_path,
+                progress_callback=internal_progress,
+            )
+            # Check if a pause was requested mid-download via flag
+            if cancelled_by_event[0]:
+                if complete_cb:
+                    complete_cb(message.id, paused=True, filepath=None)
+                break
+            if complete_cb:
+                complete_cb(message.id, filepath=file_path)
+            break
+                
+        except asyncio.CancelledError:
+            # Genuine external coroutine cancellation (task.cancel() from outside)
+            if complete_cb:
+                complete_cb(message.id, paused=True, filepath=None)
+            break
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait_time = getattr(e, 'seconds', 2)
+                print(f"Error downloading {message.id}, retrying in {wait_time}s ({attempt+1}/{max_retries}): {e}")
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"Error downloading message {message.id} after {max_retries} attempts: {e}")
+                if complete_cb:
+                    complete_cb(message.id, paused=False) # Marked as complete to not block pipeline
+
+async def download_in_batches_headless(messages, folder_name, batch_size, downloaded_state, progress_cb, complete_cb, task_cancel_event=None, max_speed_kb=None):
     semaphore = asyncio.Semaphore(batch_size)
     
     def internal_complete(msg_id, paused=False, filepath=None):
@@ -110,13 +162,13 @@ async def download_in_batches_headless(messages, folder_name, batch_size, downlo
             if task_cancel_event and task_cancel_event.is_set():
                 if complete_cb: complete_cb(message.id, paused=True, filepath=None)
                 return
-            await download_single_file(message, folder_name, progress_cb, internal_complete, task_cancel_event)
+            await download_single_file(message, folder_name, progress_cb, internal_complete, task_cancel_event, max_speed_kb)
 
     tasks = [download_message(m) for m in messages if m.id not in downloaded_state]
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)
 
-async def get_messages_by_type(client, channel, media_choice, limit=2000):
+async def get_messages_by_type(client, channel, media_choice, min_id=None, max_id=None, limit=2000):
     """
     media_choice: 
     1 - Images
@@ -136,8 +188,12 @@ async def get_messages_by_type(client, channel, media_choice, limit=2000):
     else:
         filter_type = None # All media
         
+    kwargs = {"limit": limit}
+    if filter_type: kwargs["filter"] = filter_type
+    if min_id: kwargs["min_id"] = min_id
+    if max_id: kwargs["max_id"] = max_id
 
-    messages = await client.get_messages(channel, filter=filter_type, limit=limit)
+    messages = await client.get_messages(channel, **kwargs)
     
     # Post-filtering for document types
     if media_choice == 3:
@@ -145,10 +201,32 @@ async def get_messages_by_type(client, channel, media_choice, limit=2000):
     elif media_choice == 4:
         messages = [m for m in messages if m.document and m.document.mime_type == "application/zip"]
     elif media_choice == 5:
-        # Audio
         messages = [m for m in messages if m.document and m.document.mime_type.startswith("audio/")]
         
     return messages
+
+async def fetch_categorized_media(client, channel, limit=500):
+    """
+    Fetches up to `limit` messages for each distinct media category IN PARALLEL.
+    All 6 filters run simultaneously via asyncio.gather, ~5x faster than sequential.
+    Returns a dict: {"Media": [...], "Files": [...], "Music": [...], "Links": [...], "GIFs": [...]}
+    """
+    (photos, videos, files, music, links, gifs) = await asyncio.gather(
+        client.get_messages(channel, filter=InputMessagesFilterPhotos(), limit=limit),
+        client.get_messages(channel, filter=InputMessagesFilterVideo(), limit=limit),
+        client.get_messages(channel, filter=InputMessagesFilterDocument(), limit=limit),
+        client.get_messages(channel, filter=InputMessagesFilterMusic(), limit=limit),
+        client.get_messages(channel, filter=InputMessagesFilterUrl(), limit=limit),
+        client.get_messages(channel, filter=InputMessagesFilterGif(), limit=limit),
+    )
+
+    return {
+        "Media": sorted(list(photos) + list(videos), key=lambda m: m.id, reverse=True)[:limit],
+        "Files": list(files),
+        "Music": list(music),
+        "Links": list(links),
+        "GIFs":  list(gifs),
+    }
 
 def get_folder_name(media_choice):
     folders = {

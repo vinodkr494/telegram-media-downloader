@@ -3,23 +3,49 @@
 [![GitHub Release](https://img.shields.io/github/v/release/vinodkr494/telegram-media-downloader?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases/latest)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/vinodkr494/telegram-media-downloader/total?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases)
 
-Telegram Bulk Media Downloader is a Python-based tool that allows users to download various types of media files (videos, images, PDFs, ZIPs, etc.) from Telegram channels and groups. The downloader supports resumable downloads, batch processing, and progress tracking, making it ideal for managing large volumes of media efficiently.
+Telegram Bulk Media Downloader is a Python-based desktop app that lets you browse, filter, and bulk-download media from any Telegram channel or group — with a beautiful modern UI, smart deduplication, speed limiting, and category-based file browsing.
+
+---
+
+## ✨ What's New in v2.2
+
+### 📂 Media Browser
+Browse your channel's entire media library **before** downloading. Filter by category (Media, Files, Music, Links, GIFs), use **Select All / Clear All**, and only queue the files you actually want.
+
+- Fetches all categories **in parallel** for fast load times
+- Tabs show live item counts per category (e.g. `Files (500)`)
+- Select individual files with checkboxes and click **Download Selected**
+
+### 🔁 Smart File Deduplication
+Before downloading any file, the app checks if it already exists on disk at the correct file size. If it does, the file is silently skipped — saving time and bandwidth.
+
+### ⚡ Speed Limiter
+Set a maximum download speed (in KB/s) from the **Settings** panel using a slider. Useful when you want the downloads to run in the background without consuming all your bandwidth.
+
+### 🐛 Core Stability Fixes
+- Fixed phantom "Download Paused" bug caused by raising `asyncio.CancelledError` inside Telethon progress callbacks
+- Fixed `sqlite3.OperationalError: database is locked` caused by Telethon's session SQLite being accessed from multiple threads
+- Fixed UI freezing due to flooding the Tkinter event queue with thousands of progress updates per second
+- Fixed `Select All` not including files when clicking `Download Selected`
+
+---
 
 ## Features
 
--   **Brand New UI (v2.0)**: Modern, sleek CustomTkinter interface with sidebar navigation and beautiful status cards.
--   **Cross-platform Executables**: Standalone executables automatically built via GitHub Actions for Windows, Linux, and macOS.
--   **Persistent Queue**: Your download queue and progress is automatically saved to disk and restored upon restarting the app.
--   **Batch Processing**: Downloads media in configurable batches for better resource management.
--   **Multi-Media Support**: Supports videos, images, PDFs, ZIP files, and more.
--   **Progress Tracking**: Displays detailed itemized progress bars for each download along with speed (KB/s).
--   **Settings Management**: Configure your download folder and active download limits directly from the GUI.
--   **Cross-Platform**: Runs natively on Windows, macOS, and Linux.
--   **Lightweight**: Requires only Python and a few lightweight libraries to run.
+- **Media Browser**: Category-based file browser — browse Photos, Videos, Documents, Music, and more before downloading
+- **Parallel Fetch**: All category filters run concurrently via `asyncio.gather` for near-instant channel scanning
+- **Smart Deduplication**: Skips already-downloaded files automatically by comparing file names and sizes
+- **Speed Limiter**: Configurable download speed cap (KB/s) to prevent bandwidth saturation
+- **Modern UI (v2.0+)**: Premium CustomTkinter interface with sidebar navigation, progress bars, and status cards
+- **Persistent Queue**: Download queue and progress automatically saved and restored on restart
+- **Batch Processing**: Configurable concurrent downloads (parallel streams)
+- **Multi-Media Support**: Videos, Images, PDFs, ZIP files, Audio, GIFs, and more
+- **Progress Tracking**: Per-file progress bars with live speed display (KB/s / MB/s)
+- **Proxy Support**: SOCKS4, SOCKS5, HTTP, and MTProto proxy configuration in Settings
+- **Theme Toggle**: Switch between Light and Dark mode from the Settings panel
+- **Cross-Platform Executables**: Standalone `.exe` / binaries via GitHub Actions for Windows, Linux, and macOS
 
 ## Screenshots
-
-Here are some screenshots demonstrating the new v2.0 Telegram Downloader UI:
 
 ![Login Screen](screenshots/app_v2_login.png)
 ![Phone Number Verification](screenshots/phone_verification.png)
@@ -27,20 +53,20 @@ Here are some screenshots demonstrating the new v2.0 Telegram Downloader UI:
 
 ## Requirements
 
--   Python 3.8+
--   Telegram API credentials (API ID and API Hash)
+- Python 3.8+
+- Telegram API credentials (API ID and API Hash)
 
 ## Installation
 
 ### Method 1: Download the Executable (Recommended)
 
 1. Go to the [Releases](https://github.com/vinodkr494/telegram-media-downloader/releases) page.
-2. Download the latest `TGDownloader-vX.X.X-Windows.exe` (or your respective OS version).
-3. Run the executable directly. No installation or Python required!
+2. Download the latest `TGDownloader-vX.X.X-Windows.exe` (or your OS version).
+3. Run directly — no Python or installation required!
 
-*Note: Windows might show a "Smart App Control" warning because the executable is newly built and unsigned. Click **More info** -> **Run anyway** to launch it.*
+> **Note:** Windows may show a "Smart App Control" warning because the executable is unsigned. Click **More info → Run anyway**.
 
-### Method 2: Run from Source (For Developers)
+### Method 2: Run from Source
 
 1. Clone the repository:
 
@@ -55,71 +81,85 @@ Here are some screenshots demonstrating the new v2.0 Telegram Downloader UI:
     pip install -r requirements.txt
     ```
 
-3. Create a `.env` file and configure it:
+3. Create a `.env` file:
 
     ```env
     API_ID=your_api_id
     API_HASH=your_api_hash
     SESSION_NAME=default_session
-    BATCH_SIZE=5
     ```
 
-4. Run the GUI application:
+4. Run the GUI:
     ```bash
     python src/gui.py
     ```
 
 ## Usage
 
-1. **Start the GUI script**:
-
-    ```bash
-    python src/gui.py
-    ```
-
-    *(Alternatively, you can still use the CLI version with `python src/downloder.py`)*
-
-2. Enter your API credentials and the Telegram channel username or **Channel ID** (e.g. `-100123456789`).
-
-6. Select the type of media to download (e.g., images, videos, audio, PDFs, ZIPs, or all).
-
-7. Click "＋ Add to Queue". If this is your first time connecting, you will be prompted to enter your phone number and the login code sent to your Telegram app.
-
-8. Watch as your files are downloaded with detailed progress bars dynamically in the UI! You can go to the **Downloads** tab to see previously added channels and inspect individual file statuses.
-
-## Advanced Configuration
+1. **Log in** with your Telegram API credentials and phone number.
+2. On the **Home** tab, enter a channel username (e.g. `@channelname`) or channel ID (e.g. `-100123456789`).
+3. Click **🔍 Fetch Media** to open the **Media Browser**.
+4. Browse files by category — use **Select All** or check individual files.
+5. Click **Download Selected** to add them to your queue.
+6. Track live progress and speed in the **Downloads** tab.
 
 ### Resuming Downloads
 
-The downloader automatically saves the progress of completed files in a `download_state.json` file. To resume downloads, simply restart the script, and it will skip already downloaded files.
+Progress is saved to `download_state.json`. Restart the app and your queue resumes automatically, skipping already-completed files.
 
-### Batch Size
+### Configure Concurrent Downloads
 
-To adjust the number of files downloaded in parallel, update the `BATCH_SIZE` value in the `.env` file.
+Go to **Settings → Download Limit** to adjust how many files download simultaneously (default: 5).
+
+### Configure Speed Limit
+
+Go to **Settings → Max Download Speed** and drag the slider to your preferred cap. Set to 0 for unlimited.
 
 ### Supported Media Types
 
-The tool supports the following media types:
+| Type | Format |
+|------|--------|
+| Videos | `.mp4`, `.mkv`, `.avi`, and more |
+| Images | `.jpg`, `.png`, `.webp`, and more |
+| PDFs | `.pdf` |
+| ZIP / Archives | `.zip`, `.rar`, `.7z` |
+| Audio | `.mp3`, `.ogg`, `.flac`, and more |
+| GIFs | Telegram animated GIFs |
 
--   Videos
--   Images
--   PDFs
--   ZIP files
--   Any other Telegram media
+## Changelog
+
+### v2.2.0
+- ✅ Added **Media Browser** with category tabs (Media, Files, Music, Links, GIFs)
+- ✅ Parallel category fetching using `asyncio.gather` (~5x faster)
+- ✅ Per-file **deduplication** (skip existing files at correct size)
+- ✅ **Speed Limiter** slider in Settings
+- ✅ Fixed immediate pause bug (`asyncio.CancelledError` in progress callback)
+- ✅ Fixed `sqlite3 database is locked` crash on download start
+- ✅ Fixed `Select All` not properly queuing files for download
+- ✅ Fixed UI freeze caused by progress event flooding
+
+### v2.1.0
+- ✅ Proxy support (SOCKS4/5, HTTP, MTProto)
+- ✅ Dark/Light theme toggle
+- ✅ Persistent download queue across restarts
+
+### v2.0.0
+- ✅ Complete UI rewrite — modern CustomTkinter dashboard
+- ✅ Sidebar navigation, download cards, per-file progress bars
+- ✅ `cryptg` hardware acceleration for fast Telegram downloads
 
 ## Roadmap
 
-### Version 2.1+ (Upcoming)
--   **Granular Media Filtering**: Selectively choose whether to download Images, Videos, or Documents.
--   **Advanced Range Filtering**: Download media by Date Ranges (e.g., last 30 days) or specific Message ID ranges.
--   **Proxy Support**: Native GUI support for MTProto and SOCKS5 proxies to bypass regional restrictions.
--   **Batch Import (TXT)**: Load multiple channel IDs/links from a `.txt` file into the active queue.
--   **Intelligent Auto-Retry**: Automatically pause and retry failed downloads or API rate limits.
--   **Theme Toggle**: Manually switch between Light and Dark mode directly from the application Settings.
+### v2.3 (Upcoming)
+- **Animated Loading Spinner** on fetch overlay
+- **Search Filter** inside Media Browser
+- **Toast Notifications** when a download queue completes
+- **Empty State Screens** for Home and Downloads tabs
+- **Concurrent Download Slider** in Settings
 
 ## Contributing
 
-We welcome contributions of all kinds! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for details on how to get started.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
 
 ## License
 
@@ -127,9 +167,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Acknowledgments
 
--   [Telethon](https://github.com/LonamiWebs/Telethon) - For making Telegram API integration easy.
--   [TQDM](https://github.com/tqdm/tqdm) - For elegant progress bars.
--   [Colorama](https://github.com/tartley/colorama) - For colorful console output.
+- [Telethon](https://github.com/LonamiWebs/Telethon) — Telegram API integration
+- [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) — Beautiful modern UI widgets
+- [cryptg](https://github.com/LonamiWebs/cryptg) — C-based crypto for fast downloads
+- [Pillow](https://python-pillow.org/) — Image processing
 
 ---
 

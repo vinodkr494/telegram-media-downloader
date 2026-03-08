@@ -13,7 +13,7 @@ from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
 
 TASKS_FILE = "active_tasks.json"
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.2.0"
 
 def load_tasks():
     if os.path.exists(TASKS_FILE):
@@ -36,7 +36,8 @@ from core_downloader import (
     load_download_state,
     fetch_channel,
     get_messages_by_type,
-    download_in_batches_headless
+    download_in_batches_headless,
+    fetch_categorized_media
 )
 
 load_dotenv()
@@ -47,34 +48,34 @@ ENV_FILE         = ".env"
 
 # ── Color palette ──────────────────────────────────────────────────────────────
 # Sidebar  – Telegram brand dark
-SB_BG        = "#17212B"   # sidebar background
-SB_ACTIVE    = "#2B5278"   # active nav item
-SB_HOVER     = "#1E2D3D"   # hover state
-SB_ACCENT    = "#2AABEE"   # Telegram blue
-SB_TEXT      = "#FFFFFF"   # sidebar icon/text
+SB_BG        = ("#17212B", "#17212B")   # sidebar background
+SB_ACTIVE    = ("#2B5278", "#2B5278")   # active nav item
+SB_HOVER     = ("#1E2D3D", "#1E2D3D")   # hover state
+SB_ACCENT    = ("#2AABEE", "#2AABEE")   # Telegram blue
+SB_TEXT      = ("#FFFFFF", "#FFFFFF")   # sidebar icon/text
 
 # Main area – light / white
-MAIN_BG      = "#F5F7FA"   # page background
-CARD_BG      = "#FFFFFF"   # card surface
-CARD_BDR     = "#CCCCCC"   # card border
-HDR_BG       = "#FFFFFF"   # top bar background
+MAIN_BG      = ("#F5F7FA", "#0F172A")   # page background
+CARD_BG      = ("#FFFFFF", "#1E293B")   # card surface
+CARD_BDR     = ("#CCCCCC", "#334155")   # card border
+HDR_BG       = ("#FFFFFF", "#1E293B")   # top bar background
 
 # Accent colours
-ACCENT_BLUE  = "#2AABEE"   # Telegram blue
-ACCENT_GREEN = "#22C55E"   # success green
-ACCENT_AMBER = "#F59E0B"   # paused / warning
-ACCENT_RED   = "#EF4444"   # error / remove
+ACCENT_BLUE  = ("#2AABEE", "#2AABEE")   # Telegram blue
+ACCENT_GREEN = ("#22C55E", "#22C55E")   # success green
+ACCENT_AMBER = ("#F59E0B", "#F59E0B")   # paused / warning
+ACCENT_RED   = ("#EF4444", "#EF4444")   # error / remove
 
 # Text
-TEXT_DARK    = "#1E293B"   # primary text on light background
-TEXT_MUTED   = "#64748B"   # secondary text
-TEXT_LIGHT   = "#94A3B8"   # placeholder
+TEXT_DARK    = ("#1E293B", "#F8FAFC")   # primary text on light background
+TEXT_MUTED   = ("#64748B", "#94A3B8")   # secondary text
+TEXT_LIGHT   = ("#94A3B8", "#64748B")   # placeholder
 
 # Buttons
-BTN_PRIMARY  = "#2AABEE"
-BTN_HOVER    = "#229ED9"
+BTN_PRIMARY  = ("#2AABEE", "#2AABEE")
+BTN_HOVER    = ("#229ED9", "#229ED9")
 
-ctk.set_appearance_mode("Light")
+ctk.set_appearance_mode(os.getenv("THEME_MODE", "Light"))
 ctk.set_default_color_theme("blue")
 
 # ── Asset paths ────────────────────────────────────────────────────────────────
@@ -115,6 +116,16 @@ class DownloaderApp(ctk.CTk):
         # Settings
         self.download_limit = int(os.getenv("DOWNLOAD_LIMIT", 5))
         self.download_path  = os.getenv("DOWNLOAD_PATH", os.path.abspath("./downloads"))
+        
+        self.theme_mode     = os.getenv("THEME_MODE", "Light")
+        self.proxy_type     = os.getenv("PROXY_TYPE", "None")
+        self.proxy_host     = os.getenv("PROXY_HOST", "")
+        self.proxy_port     = os.getenv("PROXY_PORT", "")
+        self.proxy_user     = os.getenv("PROXY_USER", "")
+        self.proxy_pass     = os.getenv("PROXY_PASS", "")
+        self.proxy_secret   = os.getenv("PROXY_SECRET", "")
+        
+        ctk.set_appearance_mode(self.theme_mode)
 
         # Async state
         self.client               = None
@@ -122,6 +133,7 @@ class DownloaderApp(ctk.CTk):
         self.auth_future          = None
         self.downloaded_state     = load_download_state()
         self.active_progress_bars = {}
+        self.max_speed_kb = int(os.getenv("MAX_SPEED_KB", "0")) # 0 = Unlimited
         self.channel_cards        = {}
         self.task_cancel_events   = {}
         self.file_list_frames     = {}
@@ -135,6 +147,39 @@ class DownloaderApp(ctk.CTk):
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         self._check_existing_session()
+
+    def _create_client(self, api_id, api_hash):
+        try:
+            api_id = int(api_id)
+        except ValueError:
+            pass
+            
+        proxy = None
+        if hasattr(self, "proxy_type") and self.proxy_type != "None":
+            import socks
+            proxy_type_map = {
+                "SOCKS4": socks.SOCKS4,
+                "SOCKS5": socks.SOCKS5,
+                "HTTP": socks.HTTP
+            }
+            if self.proxy_type in proxy_type_map:
+                try:
+                    proxy_port = int(self.proxy_port) if self.proxy_port else 0
+                    if self.proxy_host and proxy_port:
+                        proxy = (proxy_type_map[self.proxy_type], self.proxy_host, proxy_port, True, self.proxy_user, self.proxy_pass)
+                except Exception:
+                    pass
+            elif self.proxy_type == "MTProto":
+                try:
+                    proxy_port = int(self.proxy_port) if self.proxy_port else 0
+                    if self.proxy_host and proxy_port and self.proxy_secret:
+                        proxy = ("mtproxy", self.proxy_host, proxy_port, self.proxy_secret)
+                except Exception:
+                    pass
+                    
+        if proxy:
+            return TelegramClient(SESSION_NAME, api_id, api_hash, proxy=proxy, loop=self.loop)
+        return TelegramClient(SESSION_NAME, api_id, api_hash, loop=self.loop)
 
     # ── Event loop ──────────────────────────────────────────────────────────────
     def _run_loop_forever(self):
@@ -153,7 +198,7 @@ class DownloaderApp(ctk.CTk):
     def _check_existing_session(self):
         if DEFAULT_API_ID and DEFAULT_API_HASH and os.path.exists(f"{SESSION_NAME}.session"):
             self.show_loading_screen("Restoring session…")
-            self.client = TelegramClient(SESSION_NAME, int(DEFAULT_API_ID), DEFAULT_API_HASH)
+            self.client = self._create_client(DEFAULT_API_ID, DEFAULT_API_HASH)
             threading.Thread(target=self._run_auto_login, daemon=True).start()
         else:
             self.show_login_screen()
@@ -268,7 +313,7 @@ class DownloaderApp(ctk.CTk):
             return
         self.login_btn.configure(state="disabled", text="Connecting…")
         if not self.client:
-            self.client = TelegramClient(SESSION_NAME, int(api_id), api_hash)
+            self.client = self._create_client(api_id, api_hash)
         threading.Thread(target=self.run_async_connect, args=(phone,), daemon=True).start()
 
     def run_async_connect(self, phone):
@@ -569,31 +614,16 @@ class DownloaderApp(ctk.CTk):
         )
         self.search_entry.pack(side="left", fill="x", expand=True)
 
-        self.media_var = ctk.StringVar(value="Videos")
-        self.media_combo = ctk.CTkOptionMenu(
+        self.fetch_btn = ctk.CTkButton(
             row,
-            values=["Images", "Videos", "PDFs", "ZIP files", "Audio files", "All Media"],
-            variable=self.media_var,
-            width=140, height=42,
-            fg_color="#F8FAFC",
-            button_color=BTN_PRIMARY,
-            button_hover_color=BTN_HOVER,
-            text_color=TEXT_DARK,
-            corner_radius=10,
-            font=ctk.CTkFont(family="Segoe UI", size=13)
-        )
-        self.media_combo.pack(side="left", padx=(10, 0))
-
-        self.search_btn = ctk.CTkButton(
-            row,
-            text="＋ Add to Queue",
+            text="🔍 Fetch Media",
             width=140, height=42,
             fg_color=BTN_PRIMARY, hover_color=BTN_HOVER,
             text_color="white", corner_radius=10,
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            command=self.on_search_channel
+            command=self.on_fetch_media_start
         )
-        self.search_btn.pack(side="left", padx=(10, 0))
+        self.fetch_btn.pack(side="left", padx=(10, 0))
 
         # Info tip
         ctk.CTkLabel(
@@ -978,6 +1008,27 @@ class DownloaderApp(ctk.CTk):
         self.limit_slider.set(self.download_limit)
         self.limit_slider.pack(fill="x", padx=20, pady=(8, 18))
 
+        # Speed limit
+        sf = section(body, "Max Download Speed")
+        
+        speed_text = f"{self.max_speed_kb // 1024} MB/s" if self.max_speed_kb >= 1024 else (f"{self.max_speed_kb} KB/s" if self.max_speed_kb > 0 else "Unlimited")
+        self.speed_lbl = ctk.CTkLabel(
+            sf, text=speed_text,
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=TEXT_MUTED
+        )
+        self.speed_lbl.pack(anchor="w", padx=20)
+        
+        self.speed_slider = ctk.CTkSlider(
+            sf, from_=0, to=10240, number_of_steps=20, # 0 to 10 MB/s limit (step ~500KB/s)
+            command=self.on_speed_slider,
+            progress_color=ACCENT_GREEN,
+            button_color=ACCENT_GREEN,
+            button_hover_color=BTN_HOVER
+        )
+        self.speed_slider.set(self.max_speed_kb)
+        self.speed_slider.pack(fill="x", padx=20, pady=(8, 18))
+
         # Download path
         pf = section(body, "Download Directory")
         p_row = ctk.CTkFrame(pf, fg_color="transparent")
@@ -996,6 +1047,63 @@ class DownloaderApp(ctk.CTk):
             corner_radius=8, font=ctk.CTkFont(size=13),
             command=self.on_browse_path
         ).pack(side="left", padx=(10, 0))
+
+        # Appearance Setting
+        tf = section(body, "Appearance")
+        self.theme_combo = ctk.CTkOptionMenu(
+            tf, values=["Light", "Dark", "System"],
+            fg_color="#F8FAFC", button_color=BTN_PRIMARY, button_hover_color=BTN_HOVER, text_color=TEXT_DARK,
+            command=self.on_theme_change
+        )
+        self.theme_combo.set(self.theme_mode.capitalize() if self.theme_mode else "Light")
+        self.theme_combo.pack(anchor="w", padx=20, pady=(0, 16))
+
+        # Proxy Setting
+        proxf = section(body, "Proxy Configuration")
+        px_inner = ctk.CTkFrame(proxf, fg_color="transparent")
+        px_inner.pack(fill="x", padx=20, pady=(0, 16))
+        
+        self.proxy_type_var = ctk.StringVar(value=self.proxy_type if self.proxy_type else "None")
+        self.proxy_type_combo = ctk.CTkOptionMenu(
+            px_inner, values=["None", "SOCKS4", "SOCKS5", "HTTP", "MTProto"],
+            variable=self.proxy_type_var,
+            fg_color="#F8FAFC", button_color=BTN_PRIMARY, button_hover_color=BTN_HOVER, text_color=TEXT_DARK
+        )
+        self.proxy_type_combo.pack(anchor="w", pady=(0, 10))
+        
+        def p_entry(parent, ph, is_pwd=False):
+            return ctk.CTkEntry(
+                parent, placeholder_text=ph, show="*" if is_pwd else "",
+                fg_color="#F8FAFC", border_color=CARD_BDR,
+                text_color=TEXT_DARK, placeholder_text_color=TEXT_LIGHT,
+                corner_radius=8
+            )
+            
+        proxy_row1 = ctk.CTkFrame(px_inner, fg_color="transparent")
+        proxy_row1.pack(fill="x", pady=4)
+        self.proxy_host_entry = p_entry(proxy_row1, "Host (e.g. 127.0.0.1)")
+        self.proxy_host_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        if self.proxy_host: self.proxy_host_entry.insert(0, self.proxy_host)
+        
+        self.proxy_port_entry = p_entry(proxy_row1, "Port (e.g. 1080)")
+        self.proxy_port_entry.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        if self.proxy_port: self.proxy_port_entry.insert(0, self.proxy_port)
+        
+        proxy_row2 = ctk.CTkFrame(px_inner, fg_color="transparent")
+        proxy_row2.pack(fill="x", pady=4)
+        self.proxy_user_entry = p_entry(proxy_row2, "Username (Optional)")
+        self.proxy_user_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        if self.proxy_user: self.proxy_user_entry.insert(0, self.proxy_user)
+        
+        self.proxy_pass_entry = p_entry(proxy_row2, "Password (Optional)", True)
+        self.proxy_pass_entry.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        if self.proxy_pass: self.proxy_pass_entry.insert(0, self.proxy_pass)
+
+        proxy_row3 = ctk.CTkFrame(px_inner, fg_color="transparent")
+        proxy_row3.pack(fill="x", pady=4)
+        self.proxy_secret_entry = p_entry(proxy_row3, "Secret (MTProto Only)")
+        self.proxy_secret_entry.pack(side="left", fill="x", expand=True)
+        if self.proxy_secret: self.proxy_secret_entry.insert(0, self.proxy_secret)
 
         ctk.CTkButton(
             body, text="💾  Save Settings", height=44,
@@ -1016,6 +1124,11 @@ class DownloaderApp(ctk.CTk):
         self.download_limit = int(val)
         self.limit_lbl.configure(text=f"{self.download_limit} files at once")
 
+    def on_speed_slider(self, val):
+        self.max_speed_kb = int(val)
+        speed_text = f"{self.max_speed_kb // 1024} MB/s" if self.max_speed_kb >= 1024 else (f"{self.max_speed_kb} KB/s" if self.max_speed_kb > 0 else "Unlimited")
+        self.speed_lbl.configure(text=speed_text)
+
     def on_browse_path(self):
         new_path = filedialog.askdirectory(initialdir=self.download_path, title="Select Download Folder")
         if new_path:
@@ -1025,16 +1138,51 @@ class DownloaderApp(ctk.CTk):
             self.path_entry.insert(0, self.download_path)
             self.path_entry.configure(state="readonly")
 
+    def on_theme_change(self, choice):
+        self.theme_mode = choice
+        ctk.set_appearance_mode(choice)
+
     def on_save_settings(self):
+        self.proxy_type = self.proxy_type_var.get()
+        self.proxy_host = self.proxy_host_entry.get().strip()
+        self.proxy_port = self.proxy_port_entry.get().strip()
+        self.proxy_user = self.proxy_user_entry.get().strip()
+        self.proxy_pass = self.proxy_pass_entry.get().strip()
+        self.proxy_secret = self.proxy_secret_entry.get().strip()
+        
         os.environ["DOWNLOAD_LIMIT"] = str(self.download_limit)
+        os.environ["MAX_SPEED_KB"]   = str(self.max_speed_kb)
         os.environ["DOWNLOAD_PATH"]  = self.download_path
+        os.environ["THEME_MODE"]     = self.theme_mode
+        os.environ["PROXY_TYPE"]     = self.proxy_type
+        os.environ["PROXY_HOST"]     = self.proxy_host
+        os.environ["PROXY_PORT"]     = self.proxy_port
+        os.environ["PROXY_USER"]     = self.proxy_user
+        os.environ["PROXY_PASS"]     = self.proxy_pass
+        os.environ["PROXY_SECRET"]   = self.proxy_secret
+        
+        keys_to_save = {
+            "DOWNLOAD_LIMIT": str(self.download_limit),
+            "MAX_SPEED_KB": str(self.max_speed_kb),
+            "DOWNLOAD_PATH": self.download_path,
+            "THEME_MODE": self.theme_mode,
+            "PROXY_TYPE": self.proxy_type,
+            "PROXY_HOST": self.proxy_host,
+            "PROXY_PORT": self.proxy_port,
+            "PROXY_USER": self.proxy_user,
+            "PROXY_PASS": self.proxy_pass,
+            "PROXY_SECRET": self.proxy_secret
+        }
+        
         if os.path.exists(ENV_FILE):
-            set_key(ENV_FILE, "DOWNLOAD_LIMIT", str(self.download_limit))
-            set_key(ENV_FILE, "DOWNLOAD_PATH",  self.download_path)
+            for k, v in keys_to_save.items():
+                set_key(ENV_FILE, k, v)
         else:
             with open(ENV_FILE, "a") as f:
-                f.write(f"\nDOWNLOAD_LIMIT={self.download_limit}\nDOWNLOAD_PATH={self.download_path}\n")
-        self.save_status.configure(text="✓  Settings saved successfully!")
+                for k, v in keys_to_save.items():
+                    f.write(f"\n{k}={v}")
+                    
+        self.save_status.configure(text="✓  Settings saved successfully! (Proxy changes require restart/reconnect)")
         self.after(3000, lambda: self.save_status.configure(text=""))
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -1114,34 +1262,170 @@ class DownloaderApp(ctk.CTk):
     # ══════════════════════════════════════════════════════════════════════════════
     # SEARCH / DOWNLOAD FLOW
     # ══════════════════════════════════════════════════════════════════════════════
-    def get_media_type_id(self):
-        return {
-            "Images": 1, "Videos": 2, "PDFs": 3,
-            "ZIP files": 4, "Audio files": 5, "All Media": 6
-        }.get(self.media_var.get(), 6)
-
-    def on_search_channel(self):
+    def on_fetch_media_start(self):
         channel_input = self.search_entry.get().strip()
         if not channel_input:
             return
-        self.search_btn.configure(text="Processing…", state="disabled")
-        media_id = self.get_media_type_id()
+            
+        # Optional full-screen UI lock while fetching
+        self.loading_overlay = ctk.CTkFrame(self, fg_color="#0D1117", corner_radius=0)
+        self.loading_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        
+        lbl = ctk.CTkLabel(
+            self.loading_overlay, text="Fetching Channel Metadata...\nThis may take a moment for large channels.",
+            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
+            text_color="#C9D1D9"
+        )
+        lbl.place(relx=0.5, rely=0.5, anchor="center")
+        
+        self.fetch_btn.configure(text="Fetching…", state="disabled")
         threading.Thread(
-            target=self.run_async_download,
-            args=(channel_input, media_id, False),
+            target=self.run_fetch_media_thread,
+            args=(channel_input,),
             daemon=True
         ).start()
-
-    def run_async_download(self, channel_input, media_id=None, is_paused=False):
+        
+    def run_fetch_media_thread(self, channel_input):
         future = asyncio.run_coroutine_threadsafe(
-            self.async_download_flow(channel_input, media_id, is_paused), self.loop
+            self.async_fetch_media_flow(channel_input), self.loop
+        )
+        try:
+            future.result()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"Error fetching channel: {e}")
+            self.after(0, lambda: self.fetch_btn.configure(text="🔍 Fetch Media", state="normal"))
+            
+    async def async_fetch_media_flow(self, channel_input):
+        try:
+            channel = await fetch_channel(self.client, channel_input)
+            categories = await fetch_categorized_media(self.client, channel, limit=500)
+            self.after(0, lambda: self.show_media_browser_modal(channel, channel_input, categories, loading_overlay=self.loading_overlay))
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"Fetch Error: {e}")
+            if hasattr(self, 'loading_overlay') and self.loading_overlay.winfo_exists():
+                self.loading_overlay.destroy()
+            self.after(0, lambda: self.fetch_btn.configure(text="🔍 Fetch Media", state="normal"))
+            
+    def show_media_browser_modal(self, channel, channel_input, categories, loading_overlay=None):
+        if loading_overlay and loading_overlay.winfo_exists():
+            loading_overlay.destroy()
+        self.fetch_btn.configure(text="🔍 Fetch Media", state="normal")
+        
+        modal = ctk.CTkToplevel(self)
+        modal.title(f"Media Browser - {channel.title or channel.id}")
+        modal.geometry("800x600")
+        modal.grab_set()
+        
+        tabview = ctk.CTkTabview(modal)
+        tabview.pack(fill="both", expand=True, padx=20, pady=(20, 10))
+        
+        self.selected_media_to_download = {} # dict of msg.id -> msg
+        # track stringvars for checkboxes to Select All
+        category_vars = {}
+        
+        for cat_name, msgs in categories.items():
+            if not msgs: continue
+            tab = tabview.add(f"{cat_name} ({len(msgs)})")
+            category_vars[cat_name] = []
+            
+            # Select All button
+            btn_frame = ctk.CTkFrame(tab, fg_color="transparent")
+            btn_frame.pack(fill="x", pady=5)
+            
+            def make_select_all(c_name):
+                def select_all():
+                    for var, _ in category_vars[c_name]:
+                        var.set(1)
+                return select_all
+
+            def make_clear_all(c_name):
+                def clear_all():
+                    for var, _ in category_vars[c_name]:
+                        var.set(0)
+                return clear_all
+
+            ctk.CTkButton(btn_frame, text="Select All", width=100, command=make_select_all(cat_name)).pack(side="left", padx=5)
+            ctk.CTkButton(btn_frame, text="Clear All", width=100, fg_color=BTN_HOVER, command=make_clear_all(cat_name)).pack(side="left", padx=5)
+            
+            scroll_frame = ctk.CTkScrollableFrame(tab, fg_color=CARD_BG)
+            scroll_frame.pack(fill="both", expand=True, pady=5)
+            
+            for m in msgs:
+                name = f"Message ID: {m.id}"
+                file_size = ""
+                has_thumb = False
+                if getattr(m, 'document', None):
+                    if m.file and m.file.name: name = m.file.name
+                    file_size = f" ({m.document.size // 1024} KB)"
+                    # Document thumbnails are supported if it's a video or has a thumb
+                    if getattr(m.document, 'thumbs', None) or getattr(m, 'video', None):
+                        has_thumb = True
+                elif getattr(m, 'video', None):
+                    file_size = f" ({m.video.size // 1024} KB)"
+                    has_thumb = True
+                elif getattr(m, 'photo', None):
+                    file_size = " (Photo)"
+                    has_thumb = True
+                    
+                display_text = f"{name}{file_size}\n{m.date.strftime('%Y-%m-%d %H:%M')}"
+                var = ctk.IntVar(value=0)
+                category_vars[cat_name].append((var, m))
+                
+                row_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+                row_frame.pack(fill="x", pady=2, padx=5)
+
+                chk = ctk.CTkCheckBox(row_frame, text="", variable=var, width=24)
+                chk.pack(side="left", padx=(0, 5), pady=10)
+
+                lbl = ctk.CTkLabel(row_frame, text=display_text, justify="left", anchor="w", font=ctk.CTkFont(size=12))
+                lbl.pack(side="left", fill="x", expand=True, pady=5)
+
+        # Bottom Actions
+        bottom_frame = ctk.CTkFrame(modal, fg_color="transparent")
+        bottom_frame.pack(fill="x", padx=20, pady=10)
+        
+        def on_download_clicked():
+            download_btn.configure(text="Starting Download...", state="disabled")
+            for child in bottom_frame.winfo_children():
+                if child != download_btn: child.configure(state="disabled")
+                
+            selected_msgs = []
+            for cat_msgs in category_vars.values():
+                for var, msg in cat_msgs:
+                    if var.get() == 1:
+                        selected_msgs.append(msg)
+            
+            if not selected_msgs:
+                download_btn.configure(text="Download Selected", state="normal")
+                for child in bottom_frame.winfo_children():
+                    if child != download_btn: child.configure(state="normal")
+                return
+                
+            modal.destroy()
+            threading.Thread(
+                target=self.run_async_download_selected,
+                args=(channel, channel_input, selected_msgs),
+                daemon=True
+            ).start()
+            
+        download_btn = ctk.CTkButton(bottom_frame, text="Download Selected", fg_color=ACCENT_GREEN, hover_color="#20A050", command=on_download_clicked)
+        download_btn.pack(side="right")
+        ctk.CTkButton(bottom_frame, text="Cancel", fg_color=BTN_HOVER, command=modal.destroy).pack(side="right", padx=10)
+
+    def run_async_download_selected(self, channel, channel_input, messages_to_download):
+        future = asyncio.run_coroutine_threadsafe(
+            self.async_download_selected_flow(channel, channel_input, messages_to_download), self.loop
         )
         try:
             future.result()
         except Exception as e:
             print(f"Error in async download runner: {e}")
 
-    def save_task_state(self, channel_input, media_id, is_paused):
+    def save_task_state(self, channel_input, media_id, is_paused, min_id=None, max_id=None):
         tasks = load_tasks()
         found = False
         for t in tasks:
@@ -1150,16 +1434,108 @@ class DownloaderApp(ctk.CTk):
                 found = True
                 break
         if not found:
-            tasks.append({"channel_input": channel_input, "media_id": media_id, "paused": is_paused})
+            tasks.append({"channel_input": channel_input, "media_id": media_id, "paused": is_paused, "min_id": min_id, "max_id": max_id})
         save_tasks(tasks)
 
-    async def async_download_flow(self, channel_input, media_id=None, is_paused=False):
+    async def async_download_selected_flow(self, channel, channel_input, messages_to_download):
+        try:
+            # Re-filter downloaded state
+            messages_to_download = [m for m in messages_to_download if m.id not in self.downloaded_state]
+            if not messages_to_download:
+                return
+                
+            total_items = len(messages_to_download)
+            completed_initial = 0
+
+            # Store in 'channel_title/selected_media' directory
+            folder_name = os.path.join(
+                self.download_path,
+                channel.title or str(channel.id),
+                "selected_media"
+            )
+            os.makedirs(folder_name, exist_ok=True)
+
+            # Generate a unique task_id with timestamp to avoid reusing a stale paused event
+            import time as _time
+            task_id = f"{channel.id}_custom_{int(_time.time())}"
+            title = f"{channel.title or channel.id} (Custom Selection)"
+
+            # Always start with a fresh, un-set cancel event
+            global_cancel_event = asyncio.Event()
+            global_cancel_event.clear()
+            self.task_cancel_events[task_id] = global_cancel_event
+            
+            # Using 7 as a pseudo media_id for 'Custom Selection' memory
+            media_id = 7
+            
+            self.after(0, self.save_task_state, channel_input, media_id, False)
+            self.after(0, self.add_channel_card,
+                       task_id, title, total_items, completed_initial,
+                       folder_name, channel_input, media_id, False)
+
+            if os.path.exists(folder_name):
+                def populate_existing():
+                    try:
+                        for f in os.listdir(folder_name):
+                            if os.path.isfile(os.path.join(folder_name, f)):
+                                self.add_file_to_list(task_id, f)
+                    except Exception:
+                        pass
+                self.after(100, populate_existing)
+
+            self.after(0, lambda: self.fetch_btn.configure(text="🔍 Fetch Media", state="normal"))
+
+            completed_count = [0]
+
+            def on_file_complete(msg_id, paused=False, filepath=None):
+                if not paused:
+                    completed_count[0] += 1
+                    self.after(0, self._update_channel_progress,
+                               task_id, completed_count[0], total_items, paused)
+                    if filepath:
+                        filename = os.path.basename(filepath)
+                        self.after(0, self.add_file_to_list, task_id, filename)
+                else:
+                    self.after(0, self._update_channel_progress,
+                               task_id, completed_count[0], total_items, paused)
+
+            def on_file_progress(msg_id, current, total, speed_str="0 KB/s"):
+                pct = current / total if total > 0 else 0
+                self.after(0, self._update_active_file_progress, task_id, pct, speed_str)
+
+            await download_in_batches_headless(
+                messages=messages_to_download,
+                folder_name=folder_name,
+                batch_size=self.download_limit,
+                downloaded_state=self.downloaded_state,
+                progress_cb=on_file_progress,
+                complete_cb=on_file_complete,
+                task_cancel_event=global_cancel_event,
+                max_speed_kb=self.max_speed_kb if self.max_speed_kb > 0 else None
+            )
+
+        except Exception as e:
+            print(f"Download Error: {e}")
+            traceback.print_exc()
+            self.after(0, lambda: self.fetch_btn.configure(text="🔍 Fetch Media", state="normal"))
+
+    # ── Backward compatibility for resumed tasks ──────────────────────────────
+    def run_async_download(self, channel_input, media_id=None, is_paused=False, min_id=None, max_id=None):
+        future = asyncio.run_coroutine_threadsafe(
+            self.async_download_flow(channel_input, media_id, is_paused, min_id, max_id), self.loop
+        )
+        try:
+            future.result()
+        except Exception as e:
+            print(f"Error in async download runner: {e}")
+
+    async def async_download_flow(self, channel_input, media_id=None, is_paused=False, min_id=None, max_id=None):
         try:
             if media_id is None:
-                media_id = self.get_media_type_id()
+                media_id = 6 # Default to All Media
 
             channel  = await fetch_channel(self.client, channel_input)
-            messages = await get_messages_by_type(self.client, channel, media_id)
+            messages = await get_messages_by_type(self.client, channel, media_id, min_id, max_id)
 
             all_messages_count   = len(messages)
             messages_to_download = [m for m in messages if m.id not in self.downloaded_state]
@@ -1167,7 +1543,7 @@ class DownloaderApp(ctk.CTk):
             completed_initial    = all_messages_count - len(messages_to_download)
 
             base_folder = {1: "images", 2: "videos", 3: "pdfs",
-                           4: "zips",   5: "audio",  6: "all_media"}
+                           4: "zips",   5: "audio",  6: "all_media", 7: "selected_media"}
             folder_name = os.path.join(
                 self.download_path,
                 channel.title or str(channel.id),
@@ -1179,11 +1555,12 @@ class DownloaderApp(ctk.CTk):
             title   = channel.title or f"Channel ID: {channel.id}"
 
             global_cancel_event = asyncio.Event()
+            global_cancel_event.clear()  # Always start fresh
             self.task_cancel_events[task_id] = global_cancel_event
             if is_paused:
                 global_cancel_event.set()
 
-            self.save_task_state(channel_input, media_id, is_paused)
+            self.after(0, self.save_task_state, channel_input, media_id, is_paused)
             self.after(0, self.add_channel_card,
                        task_id, title, total_items, completed_initial,
                        folder_name, channel_input, media_id, is_paused)
@@ -1196,17 +1573,13 @@ class DownloaderApp(ctk.CTk):
                                 self.add_file_to_list(task_id, f)
                     except Exception:
                         pass
-                # Run slightly after add_channel_card finishes building the UI frames
                 self.after(100, populate_existing)
-
-            self.after(0, lambda: self.search_btn.configure(text="＋ Add to Queue", state="normal"))
 
             completed_count = [completed_initial]
 
             def on_file_complete(msg_id, paused=False, filepath=None):
                 if not paused:
                     completed_count[0] += 1
-                    # Try to resolve filename for Downloads view
                     self.after(0, self._update_channel_progress,
                                task_id, completed_count[0], total_items, paused)
                     if filepath:
@@ -1232,7 +1605,8 @@ class DownloaderApp(ctk.CTk):
                     downloaded_state=self.downloaded_state,
                     progress_cb=on_file_progress,
                     complete_cb=on_file_complete,
-                    task_cancel_event=global_cancel_event
+                    task_cancel_event=global_cancel_event,
+                    max_speed_kb=self.max_speed_kb if self.max_speed_kb > 0 else None
                 )
             else:
                 self.after(0, self._update_channel_progress,
@@ -1241,7 +1615,6 @@ class DownloaderApp(ctk.CTk):
         except Exception as e:
             print(f"Download Error: {e}")
             traceback.print_exc()
-            self.after(0, lambda: self.search_btn.configure(text="＋ Add to Queue", state="normal"))
 
     # ── Progress updates ────────────────────────────────────────────────────────
     def _update_active_file_progress(self, task_id, pct, speed_str):

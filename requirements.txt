@@ -5,3 +5,4 @@ cryptg==0.5.0.post0
 python-dotenv==1.0.1
 customtkinter==5.2.2
 pillow==10.3.0
+PySocks==1.7.1
