@@ -3,29 +3,26 @@
 [![GitHub Release](https://img.shields.io/github/v/release/vinodkr494/telegram-media-downloader?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases/latest)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/vinodkr494/telegram-media-downloader/total?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases)
 
-Telegram Bulk Media Downloader is a Python-based desktop app that lets you browse, filter, and bulk-download media from any Telegram channel or group — with a beautiful modern UI, smart deduplication, speed limiting, and category-based file browsing.
+Telegram Bulk Media Downloader is a Python-based desktop app that lets you browse, filter, and bulk-download media from any Telegram channel or group — with a **completely rebuilt PySide6 UI**, modular architecture, and enhanced background threading for 24/7 reliability.
 
 ---
 
-## ✨ What's New in v2.3
+## ✨ What's New in v2.4.1 (PySide6 Rewrite)
 
-### 🌀 Animated Loading Spinner
-The "Fetch Media" overlay now shows a **braille animation** (`⠋⠙⤹⠸⠼⠴⠦⠧⠇⠏`) cycling every 80ms so the app never looks frozen during a channel scan.
+### 🚀 Modern PySide6 Desktop GUI
+The entire project has been rewritten from **v2.3 (CustomTkinter)** to **v2.4 (PySide6)**. This brings native OS drawing, better performance, and a more robust multi-threaded architecture that keeps the interface responsive even during heavy downloads.
 
-### 🔍 Real-time Search in Media Browser
-A search bar at the top of each category tab filters file rows **live as you type**. Find a specific file among 500+ results instantly without scrolling.
+### 🏗️ Modular Design
+A new sidebar-based layout separates concerns into **Home**, **Queue**, **Settings**, and **About** views. This makes navigation faster and allows for future expansion into more advanced features.
 
-### ✅ Live Selection Counter
-A `"X of Y files selected"` count bar sits between the file list and the Download button. It turns **green** as soon as you select files.
+### 📥 Enhanced Downloads Queue
+Active downloads are now tracked in a dedicated **Queue** tab. Each download "card" shows high-level progress while managing its own background workers for individual files.
 
-### 🔔 Toast Notifications on Download Complete
-When a download queue finishes, a **dark pop-up** slides in from the bottom-right corner and auto-dismisses after 3 seconds.
+### 🌑 Premium Light/Dark Theming
+Full support for a sleek **Dark Mode** and a clean **Light Mode** powered by custom QSS (Qt Style Sheets). Switch on-the-fly from the sidebar without restarting the app.
 
-### 📥 Empty State Screens
-Home and Downloads tabs now show a friendly **placeholder illustration + helper text** instead of a blank page on fresh launch.
-
-### 🐛 Bug Fix: Modal Not Closing on Download
-Fixed a tuple-unpacking mismatch introduced in v2.3 that prevented `Download Selected` from closing the modal.
+### 🔒 Robust Authentication Flow
+A completely redesigned login experience that handles phone numbers, OTP codes, and 2FA (Cloud Passwords) with clear, step-by-step guidance.
 
 ---
 
@@ -130,6 +127,15 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 
 ## Changelog
 
+### v2.4.1
+- 🚀 **Full PySide6 Rewrite** — migrated from CustomTkinter for native performance
+- 🏗️ **Modular UI** — sidebar navigation with dedicated views (Home, Queue, Settings)
+- 🌑 **Premium Theming** — full QSS-based Light/Dark mode support
+- 🔒 **Enhanced Auth** — multi-step Phone/OTP/2FA login flow
+- 📊 **Improved Queue** — per-task download cards with robust pause/resume/cancel
+- 📁 **Modular Workers** — thread-safe `TelegramWorker` for background operations
+- ⚙️ **Config Persistence** — settings now save to `config.json` automatically
+
 ### v2.3.0
 - ✅ Animated braille spinner on the Fetch Media overlay
 - ✅ Real-time search/filter bar inside every Media Browser tab
@@ -196,7 +202,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Acknowledgments
 
 - [Telethon](https://github.com/LonamiWebs/Telethon) — Telegram API integration
-- [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) — Beautiful modern UI widgets
+- [PySide6](https://pypi.org/project/PySide6/) — Native Python bindings for Qt WebEngine/Widgets
 - [cryptg](https://github.com/LonamiWebs/cryptg) — C-based crypto for fast downloads
 - [Pillow](https://python-pillow.org/) — Image processing
 
