@@ -16,10 +16,11 @@ from ui.views.login_view import LoginView
 from PySide6.QtGui import QCloseEvent
 
 class MainWindow(QMainWindow):
-    def __init__(self, telegram_worker):
+    def __init__(self, telegram_worker, version="unknown"):
         super().__init__()
         self.worker = telegram_worker
-        self.setWindowTitle("TG Media Downloader v2.4.0 (PySide6)")
+        self.version = version
+        self.setWindowTitle(f"TG Media Downloader v{version} (PySide6)")
         self.resize(1100, 750)
         self._is_authenticating = False
         
@@ -159,7 +160,7 @@ class MainWindow(QMainWindow):
         ac_layout.setContentsMargins(24, 24, 24, 24)
         ac_layout.setSpacing(16)
         
-        lbl_version = QLabel("Version: 2.4.0 (PySide6)")
+        lbl_version = QLabel(f"Version: {self.version} (PySide6)")
         lbl_version.setObjectName("SectionHeader")
         ac_layout.addWidget(lbl_version)
         

@@ -1,6 +1,8 @@
 import os
 import sys
 
+APP_VERSION = "2.4.0"
+
 # We add src to path so absolute imports within src work cleanly
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -23,8 +25,8 @@ def main():
         api_hash=api_hash
     )
     
-    # 2. Launch PySide6 UI, giving it the worker to communicate with
-    ui.app.launch_app(worker)
+    # 2. Launch PySide6 UI, giving it the worker and version string
+    ui.app.launch_app(worker, APP_VERSION)
 
 if __name__ == "__main__":
     main()

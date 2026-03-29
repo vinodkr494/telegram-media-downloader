@@ -16,13 +16,13 @@ def apply_theme(is_dark=False):
         with open(qss_path, "r", encoding="utf-8") as f:
             _app_instance.setStyleSheet(f.read())
 
-def launch_app(telegram_worker):
+def launch_app(telegram_worker, version="unknown"):
     global _app_instance
     _app_instance = QApplication(sys.argv)
     
     apply_theme(is_dark=False)
             
-    window = MainWindow(telegram_worker)
+    window = MainWindow(telegram_worker, version)
     window.show()
     
     # Start the worker thread
