@@ -237,7 +237,7 @@ class TelegramWorker(QThread):
             self.task_cancel_events[task_id].set()
             
         try:
-            channel_input, media_id_str = task_id.split('_', 1)
+            channel_input, media_id_str = task_id.rsplit('_', 1)
             media_id = int(media_id_str)
             tasks = load_active_tasks()
             for t in tasks:
@@ -258,7 +258,7 @@ class TelegramWorker(QThread):
             del self.task_cancel_events[task_id]
             
         try:
-            channel_input, media_id_str = task_id.split('_', 1)
+            channel_input, media_id_str = task_id.rsplit('_', 1)
             media_id = int(media_id_str)
             tasks = load_active_tasks()
             tasks = [t for t in tasks if not (str(t.get("channel_input")) == channel_input and t.get("media_id") == media_id)]
@@ -269,26 +269,37 @@ class TelegramWorker(QThread):
     async def _download_coro(self, channel_input, media_id, download_path, download_limit, max_speed_kb, is_paused, selected_message_ids):
         try:
             channel = await fetch_channel(self.client, channel_input)
-            task_id = f"{channel.id}_{media_id}"
+            task_id = f"{channel_input}_{media_id}"
             title = channel.title or f"Channel ID: {channel.id}"
             
             # 1. Clean up potential duplicates in active_tasks.json now that we know the true channel ID
             try:
                 tasks = load_active_tasks()
                 deduped_tasks = []
-                seen_task_ids = set()
-                # Keep current one, remove others with same resolved channel_id 
-                # (This is tricky since we don't have all resolved IDs, but we can deduplicate exact matches at least)
+                seen_channel_ids = set()
+                
+                # We want to keep the current task and remove any others that resolve to the same numeric channel ID
+                # To be safe, we'll only deduplicate if the media_id matches too.
                 for tk in tasks:
-                    if str(tk.get("channel_input")) == str(channel_input) and tk.get("media_id") == media_id:
-                        if task_id not in seen_task_ids:
-                            seen_task_ids.add(task_id)
+                    match = False
+                    # Check if this task in the list matches our current resolved channel
+                    if tk.get("media_id") == media_id:
+                        # If it's the exact same input, it's definitely a duplicate
+                        if str(tk.get("channel_input")) == str(channel_input):
+                            match = True
+                        # If it's a numeric ID that matches our resolved ID
+                        elif str(tk.get("channel_input")).replace("-100", "") == str(channel.id).replace("-100", ""):
+                            match = True
+                    
+                    if match:
+                        if task_id not in seen_channel_ids:
+                            seen_channel_ids.add(task_id)
                             deduped_tasks.append(tk)
                     else:
                         deduped_tasks.append(tk)
                 save_active_tasks(deduped_tasks)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Deduplication error: {e}")
                 
             # 2. Emit placeholder so the card appears instantly
             self.signals.channel_fetched.emit({
@@ -398,7 +409,7 @@ class TelegramWorker(QThread):
                     if completed_count[0] >= total_items:
                         # Remove from active tasks
                         try:
-                            t_chan, t_media_str = task_id.split('_', 1)
+                            t_chan, t_media_str = task_id.rsplit('_', 1)
                             t_media = int(t_media_str)
                             tkList = load_active_tasks()
                             tkList = [tk for tk in tkList if not (str(tk.get("channel_input")) == t_chan and tk.get("media_id") == t_media)]

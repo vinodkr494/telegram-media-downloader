@@ -20,6 +20,12 @@ def launch_app(telegram_worker, version="unknown"):
     global _app_instance
     _app_instance = QApplication(sys.argv)
     
+    # Global Icon Setup
+    from PySide6.QtGui import QIcon
+    icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "logo.ico")
+    if os.path.exists(icon_path):
+        _app_instance.setWindowIcon(QIcon(icon_path))
+    
     apply_theme(is_dark=False)
             
     window = MainWindow(telegram_worker, version)

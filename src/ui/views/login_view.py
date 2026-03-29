@@ -17,7 +17,8 @@ class LoginView(QWidget):
         self.load_env_defaults()
 
     def setup_ui(self):
-        self.setStyleSheet("background-color: #F1F5F9;")
+        self.setObjectName("LoginView")
+        self.setAttribute(Qt.WA_StyledBackground, True)
         
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -48,8 +49,7 @@ class LoginView(QWidget):
         logo_lbl.setAlignment(Qt.AlignCenter)
 
         lbl_app = QLabel("Telegram Downloader")
-        lbl_app.setStyleSheet(
-            "font-size: 17px; font-weight: 700; color: #1E293B; letter-spacing: 0.3px;")
+        lbl_app.setObjectName("LoginHeader")
         lbl_app.setAlignment(Qt.AlignCenter)
 
         logo_row.addWidget(logo_lbl)
@@ -59,8 +59,7 @@ class LoginView(QWidget):
 
         # ── divider ─────────────────────────────────────────────────────────
         divider = QFrame()
-        divider.setFixedHeight(1)
-        divider.setStyleSheet("background-color: #E2E8F0;")
+        divider.setObjectName("DividerHorizontal")
         card_layout.addWidget(divider)
         card_layout.addSpacing(16)
 
@@ -75,7 +74,7 @@ class LoginView(QWidget):
 
         def _lbl(text):
             lb = QLabel(text)
-            lb.setStyleSheet("font-size: 12px; font-weight: 600; color: #475569;")
+            lb.setObjectName("ControlLabel")
             return lb
 
         self.inp_api_id   = QLineEdit(); self.inp_api_id.setPlaceholderText("e.g. 12345678")
@@ -86,11 +85,7 @@ class LoginView(QWidget):
             w.setMinimumHeight(38)
 
         self.btn_send_code = QPushButton("Send Verification Code")
-        self.btn_send_code.setStyleSheet(
-            "QPushButton { background-color: #2BA5E4; color: white; border: none; "
-            "border-radius: 6px; font-size: 14px; font-weight: bold; padding: 0 16px; }"
-            "QPushButton:hover { background-color: #1A96D5; }"
-            "QPushButton:disabled { background-color: #94A3B8; }")
+        self.btn_send_code.setObjectName("PrimaryButtonLarge")
         self.btn_send_code.setMinimumHeight(42)
         self.btn_send_code.clicked.connect(self.on_send_code)
 
@@ -110,7 +105,7 @@ class LoginView(QWidget):
         l2.setSpacing(8)
 
         hint2 = QLabel("📲 Check your Telegram app for the code.")
-        hint2.setStyleSheet("font-size: 13px; color: #64748B;")
+        hint2.setObjectName("MutedText")
         hint2.setWordWrap(True)
 
         self.inp_code = QLineEdit()
@@ -118,17 +113,12 @@ class LoginView(QWidget):
         self.inp_code.setMinimumHeight(38)
 
         self.btn_submit_code = QPushButton("Verify & Login")
-        self.btn_submit_code.setStyleSheet(
-            "QPushButton { background-color: #2BA5E4; color: white; border: none; "
-            "border-radius: 6px; font-size: 14px; font-weight: bold; padding: 0 16px; }"
-            "QPushButton:hover { background-color: #1A96D5; }"
-            "QPushButton:disabled { background-color: #94A3B8; }")
+        self.btn_submit_code.setObjectName("PrimaryButtonLarge")
         self.btn_submit_code.setMinimumHeight(42)
         self.btn_submit_code.clicked.connect(self.on_submit_code)
 
         self.btn_back = QPushButton("← Back")
-        self.btn_back.setStyleSheet(
-            "background: transparent; border: none; color: #2BA5E4; font-weight: 600;")
+        self.btn_back.setObjectName("LinkButton")
         self.btn_back.clicked.connect(self.reset_to_start)
 
         l2.addWidget(hint2)
@@ -146,7 +136,7 @@ class LoginView(QWidget):
         l3.setSpacing(8)
 
         hint3 = QLabel("🔐 Two-step verification is enabled.")
-        hint3.setStyleSheet("font-size: 13px; color: #64748B;")
+        hint3.setObjectName("MutedText")
 
         self.inp_pwd = QLineEdit()
         self.inp_pwd.setEchoMode(QLineEdit.Password)
@@ -154,11 +144,7 @@ class LoginView(QWidget):
         self.inp_pwd.setMinimumHeight(38)
 
         self.btn_submit_pwd = QPushButton("Submit Password")
-        self.btn_submit_pwd.setStyleSheet(
-            "QPushButton { background-color: #2BA5E4; color: white; border: none; "
-            "border-radius: 6px; font-size: 14px; font-weight: bold; padding: 0 16px; }"
-            "QPushButton:hover { background-color: #1A96D5; }"
-            "QPushButton:disabled { background-color: #94A3B8; }")
+        self.btn_submit_pwd.setObjectName("PrimaryButtonLarge")
         self.btn_submit_pwd.setMinimumHeight(42)
         self.btn_submit_pwd.clicked.connect(self.on_submit_pwd)
 

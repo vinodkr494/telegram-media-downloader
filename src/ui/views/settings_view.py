@@ -50,8 +50,8 @@ class SettingsView(QWidget):
         layout.setSpacing(24)
 
         # Header
-        lbl_header = QLabel("Application Settings")
-        lbl_header.setStyleSheet("color: #1E293B; font-weight: bold; font-size: 24px;")
+        lbl_header = QLabel("Settings")
+        lbl_header.setObjectName("MainHeaderLarge")
         layout.addWidget(lbl_header)
 
         # Card Container
@@ -79,8 +79,7 @@ class SettingsView(QWidget):
 
         # Divider
         div1 = QFrame()
-        div1.setFrameShape(QFrame.HLine)
-        div1.setStyleSheet("background-color: #E2E8F0;")
+        div1.setObjectName("Divider")
         clayout.addWidget(div1)
 
         # 2. Proxy Settings
@@ -121,8 +120,7 @@ class SettingsView(QWidget):
 
         # Divider
         div2 = QFrame()
-        div2.setFrameShape(QFrame.HLine)
-        div2.setStyleSheet("background-color: #E2E8F0;")
+        div2.setObjectName("Divider")
         clayout.addWidget(div2)
 
         # 3. Download Limits
@@ -155,8 +153,7 @@ class SettingsView(QWidget):
 
         # Divider
         div3 = QFrame()
-        div3.setFrameShape(QFrame.HLine)
-        div3.setStyleSheet("background-color: #E2E8F0;")
+        div3.setObjectName("Divider")
         clayout.addWidget(div3)
 
         # 4. Save Button

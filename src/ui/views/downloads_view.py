@@ -27,8 +27,8 @@ class DownloadsView(QWidget):
 
         # 1. Header & Global Controls
         header_row = QHBoxLayout()
-        self.lbl_active = QLabel("Active Queue")
-        self.lbl_active.setStyleSheet("color: #1E293B; font-weight: bold; font-size: 20px;")
+        self.lbl_active = QLabel("Active Downloads")
+        self.lbl_active.setObjectName("MainHeader")
         
         self.btn_pause_all = QPushButton("⏸ Pause All")
         self.btn_pause_all.setObjectName("SecondaryButton")
@@ -57,8 +57,8 @@ class DownloadsView(QWidget):
         self.content_layout.addWidget(self.active_container)
 
         # 2. Completed Downloads Section
-        self.lbl_completed = QLabel("Completed Downloads")
-        self.lbl_completed.setStyleSheet("color: #1E293B; font-weight: bold; font-size: 20px;")
+        self.lbl_completed = QLabel("Completed")
+        self.lbl_completed.setObjectName("MainHeader")
         self.content_layout.addWidget(self.lbl_completed)
 
         self.history_container = QWidget()
@@ -91,7 +91,7 @@ class DownloadsView(QWidget):
         
         item = QFrame()
         item.setObjectName("WhiteCard")
-        item.setStyleSheet("QWidget#WhiteCard { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 8px; }")
+        item.setProperty("compact", True)
         
         item_layout = QVBoxLayout(item)
         item_layout.setContentsMargins(16, 16, 16, 16)

@@ -5,8 +5,8 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QLineEdit, QScrollArea, QFrame,
     QMessageBox, QToolButton, QSizePolicy
 )
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtCore import Qt, QSize, QUrl
+from PySide6.QtGui import QIcon, QPixmap, QDesktopServices
 from ui.components.download_card import DownloadCard
 from ui.components.media_browser import MediaBrowserDialog
 from ui.components import auth_dialogs
@@ -131,7 +131,7 @@ class MainWindow(QMainWindow):
         h_layout.setContentsMargins(40, 20, 24, 0)
         
         lbl_header = QLabel("Add Download")
-        lbl_header.setStyleSheet("color: #1E293B; font-weight: bold; font-size: 20px;")
+        lbl_header.setObjectName("MainHeader")
         h_layout.addWidget(lbl_header)
         h_layout.addStretch()
 
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
         about_layout.setSpacing(24)
         
         lbl_about_header = QLabel("About Telegram Bulk Media Downloader")
-        lbl_about_header.setStyleSheet("color: #1E293B; font-weight: bold; font-size: 24px;")
+        lbl_about_header.setObjectName("MainHeaderLarge")
         about_layout.addWidget(lbl_about_header)
         
         about_card = QFrame()
@@ -170,14 +170,20 @@ class MainWindow(QMainWindow):
             "By Vinod Kumar."
         )
         lbl_desc.setWordWrap(True)
-        lbl_desc.setStyleSheet("color: #475569; font-size: 14px; line-height: 1.5;")
+        lbl_desc.setObjectName("DescriptionText")
         ac_layout.addWidget(lbl_desc)
+
+        btn_github = QPushButton("🌐 GitHub Repository")
+        btn_github.setObjectName("LinkButton")
+        btn_github.setCursor(Qt.PointingHandCursor)
+        btn_github.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/vinodkr494/telegram-media-downloader")))
+        ac_layout.addWidget(btn_github)
         
         ac_layout.addWidget(QLabel("")) # Spacer
         
         lbl_disclaimer = QLabel("⚠️ Legal Disclaimer")
         lbl_disclaimer.setObjectName("SectionHeader")
-        lbl_disclaimer.setStyleSheet("color: #EF4444;")
+        lbl_disclaimer.setProperty("danger", True)
         ac_layout.addWidget(lbl_disclaimer)
         
         lbl_disclaimer_text = QLabel(
@@ -239,12 +245,12 @@ class MainWindow(QMainWindow):
         self.btn_fetch.setMinimumHeight(44)
         self.btn_fetch.clicked.connect(self.on_fetch_clicked)
         
-        search_input_layout.addWidget(self.input_channel)
+        search_input_layout.addWidget(self.input_channel, stretch=1)
         search_input_layout.addWidget(self.btn_fetch)
         
         lbl_hint = QLabel("Tip: enter @username, https://t.me/username, or the numeric channel ID")
         lbl_hint.setObjectName("MutedText")
-        lbl_hint.setStyleSheet("font-size: 11px;")
+        lbl_hint.setWordWrap(True)
         
         sc_layout.addWidget(lbl_search_title)
         sc_layout.addLayout(search_input_layout)
@@ -341,8 +347,21 @@ class MainWindow(QMainWindow):
         self.load_active_tasks_from_worker()
         
     def load_active_tasks_from_worker(self):
-        from core_downloader import load_active_tasks
+        from core_downloader import load_active_tasks, save_active_tasks
         tasks = load_active_tasks()
+        # Initial deduplication of the file itself
+        seen = set()
+        deduped = []
+        for t in tasks:
+            key = (str(t.get("channel_input")), t.get("media_id"))
+            if key not in seen:
+                seen.add(key)
+                deduped.append(t)
+        
+        if len(deduped) != len(tasks):
+            save_active_tasks(deduped)
+            tasks = deduped
+
         for t in tasks:
             self.worker.start_download(
                 channel_input=t.get("channel_input"),

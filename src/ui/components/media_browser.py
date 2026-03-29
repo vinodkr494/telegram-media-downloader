@@ -3,68 +3,123 @@ import humanize
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QTabWidget, QWidget, QScrollArea,
-    QCheckBox, QFrame
+    QCheckBox, QFrame, QSizePolicy
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon
+
+class SelectableMediaRow(QWidget):
+    stateChanged = Signal(bool)
+
+    def __init__(self, msg, parent=None):
+        super().__init__(parent)
+        self.msg = msg
+        self.setObjectName("SelectableRow")
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        # remove fixed height to allow wrapping if text is long
+        self.setMinimumHeight(64)
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(16)
+
+        # 1. Checkbox
+        self.cb = QCheckBox()
+        self.cb.setCursor(Qt.PointingHandCursor)
+        self.cb.stateChanged.connect(self.on_cb_state_changed)
+        layout.addWidget(self.cb)
+
+        # 2. Information Stack
+        info_stack = QVBoxLayout()
+        info_stack.setSpacing(6)
+
+        # Row 1: Title
+        msg_size = getattr(self.msg, 'document', None) and getattr(self.msg.document, 'size', 0)
+        size_str = humanize.naturalsize(msg_size) if msg_size else "0 B"
+        date_str = self.msg.date.strftime("%Y-%m-%d %H:%M") if getattr(self.msg, 'date', None) else ""
+        
+        # Prioritize filename over caption for clearer identification
+        title_text = ""
+        if getattr(self.msg, 'file', None) and getattr(self.msg.file, 'name', None):
+            title_text = self.msg.file.name
+        elif self.msg.message:
+            title_text = self.msg.message.replace('\n', ' ').strip()
+        
+        if not title_text:
+            title_text = f"Msg #{self.msg.id}"
+
+        self.lbl_title = QLabel(title_text)
+        self.lbl_title.setObjectName("MediaItemTitle")
+        self.lbl_title.setWordWrap(True) # Ensure long titles wrap properly
+        info_stack.addWidget(self.lbl_title)
+
+        # Row 2: Badge & Date
+        meta_row = QHBoxLayout()
+        meta_row.setSpacing(12)
+        
+        self.lbl_size = QLabel(size_str)
+        self.lbl_size.setObjectName("SizeBadge")
+        
+        self.lbl_date = QLabel(date_str)
+        self.lbl_date.setObjectName("MediaItemMeta")
+        
+        meta_row.addWidget(self.lbl_size)
+        meta_row.addWidget(self.lbl_date)
+        meta_row.addStretch()
+        
+        info_stack.addLayout(meta_row)
+        layout.addLayout(info_stack)
+        layout.addStretch()
+
+    def on_cb_state_changed(self, state):
+        is_checked = (state == Qt.Checked)
+        self.setProperty("checked", "true" if is_checked else "false")
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.stateChanged.emit(is_checked)
+
+    def mousePressEvent(self, event):
+        # Toggle checkbox on click anywhere in row
+        self.cb.setChecked(not self.cb.isChecked())
+        super().mousePressEvent(event)
+
+    def setChecked(self, state):
+        self.cb.setChecked(state)
+
+    def isChecked(self):
+        return self.cb.isChecked()
 
 class MediaBrowserDialog(QDialog):
     def __init__(self, channel_title, messages_dict, parent=None):
-        """
-        messages_dict: {
-            "media": [message_objects...],
-            "files": [message_objects...],
-            "links": [message_objects...]
-        }
-        """
         super().__init__(parent)
         self.setWindowTitle(f"Media Browser - {channel_title}")
         icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "logo.ico"))
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
             
-        self.setMinimumSize(600, 500)
-        self.setObjectName("WhiteCard")
-        # Ensure dialog uses the white card styling implicitly
-        self.setStyleSheet("QDialog { background-color: #F8FAFC; }")
-
+        self.setMinimumSize(750, 600)
         self.messages = messages_dict
         self.selected_messages = []
-        
-        # Store references to all checkboxes so we can "Select All"
-        self.checkboxes = {} # tab_name -> list of QCheckBox
+        self.rows = {} # tab_name -> list of SelectableMediaRow
         
         self.setup_ui(channel_title)
 
     def setup_ui(self, channel_title):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setSpacing(20)
+
+        # Header
+        header_lbl = QLabel(f"Browse Media: {channel_title}")
+        header_lbl.setObjectName("MainHeader")
+        layout.addWidget(header_lbl)
 
         # Tabs
         self.tabs = QTabWidget()
-        self.tabs.setStyleSheet("""
-            QTabBar::tab {
-                background: #E2E8F0;
-                color: #64748B;
-                padding: 8px 16px;
-                border-top-left-radius: 6px;
-                border-top-right-radius: 6px;
-                font-weight: bold;
-                margin-right: 4px;
-            }
-            QTabBar::tab:selected {
-                background: #2BA5E4;
-                color: #FFFFFF;
-            }
-            QTabWidget::pane {
-                border: 1px solid #E2E8F0;
-                border-radius: 6px;
-                background: #FFFFFF;
-            }
-        """)
+        self.tabs.setObjectName("MediaTabs")
 
-        # Build tabs
         self.tab_media = self.build_tab("media")
         self.tab_files = self.build_tab("files")
         self.tab_links = self.build_tab("links")
@@ -75,13 +130,15 @@ class MediaBrowserDialog(QDialog):
 
         layout.addWidget(self.tabs)
 
-        # Bottom Status & Action Row
+        # Bottom Actions
         bottom_layout = QHBoxLayout()
         
         self.lbl_selected_count = QLabel("0 files selected")
-        self.lbl_selected_count.setStyleSheet("color: #10B981; font-weight: bold; font-size: 12px;")
+        self.lbl_selected_count.setObjectName("DialogStatus")
         
         self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.setObjectName("SecondaryButton")
+        self.btn_cancel.setFixedWidth(100)
         self.btn_cancel.clicked.connect(self.reject)
         
         self.btn_download = QPushButton("Download Selected")
@@ -98,82 +155,68 @@ class MediaBrowserDialog(QDialog):
     def build_tab(self, tab_key):
         tab_widget = QWidget()
         layout = QVBoxLayout(tab_widget)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(0, 0, 0, 0) # Tabs should handle their own internal margins
+        layout.setSpacing(0)
         
-        # Tools row
-        tools_layout = QHBoxLayout()
-        btn_select_all = QPushButton("Select All")
-        btn_select_all.setObjectName("PrimaryButton")
-        btn_clear_all = QPushButton("Clear All")
-        btn_clear_all.setObjectName("PrimaryButton")
+        # Tools bar
+        tools = QWidget()
+        tools.setFixedHeight(50)
+        tools.setStyleSheet("background-color: transparent;")
+        t_layout = QHBoxLayout(tools)
+        t_layout.setContentsMargins(16, 0, 16, 0)
         
-        btn_select_all.clicked.connect(lambda: self.set_all_checkboxes(tab_key, True))
-        btn_clear_all.clicked.connect(lambda: self.set_all_checkboxes(tab_key, False))
+        btn_all = QPushButton("Select All")
+        btn_all.setObjectName("SecondaryButton")
+        btn_none = QPushButton("Clear All")
+        btn_none.setObjectName("SecondaryButton")
         
-        tools_layout.addWidget(btn_select_all)
-        tools_layout.addWidget(btn_clear_all)
-        tools_layout.addStretch()
-        layout.addLayout(tools_layout)
+        btn_all.clicked.connect(lambda: self.set_all_rows(tab_key, True))
+        btn_none.clicked.connect(lambda: self.set_all_rows(tab_key, False))
+        
+        t_layout.addWidget(btn_all)
+        t_layout.addWidget(btn_none)
+        t_layout.addStretch()
+        layout.addWidget(tools)
 
         # Scrollable list
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; } QWidget#list_bg { background-color: #FFFFFF; }")
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("background: transparent;")
         
         list_container = QWidget()
-        list_container.setObjectName("list_bg")
+        list_container.setStyleSheet("background: transparent;")
         list_layout = QVBoxLayout(list_container)
+        list_layout.setContentsMargins(16, 16, 16, 16) # Add padding so cards don't touch edges
+        list_layout.setSpacing(10) # 10px spacing between cards
         list_layout.setAlignment(Qt.AlignTop)
         
-        self.checkboxes[tab_key] = []
-        
+        self.rows[tab_key] = []
         messages = self.messages.get(tab_key, [])
         for msg in messages:
-            msg_size = getattr(msg, 'document', None) and getattr(msg.document, 'size', 0)
-            size_str = humanize.naturalsize(msg_size) if msg_size else "Unknown size"
-            date_str = msg.date.strftime("%Y-%m-%d %H:%M") if getattr(msg, 'date', None) else ""
-            
-            # Use message ID or text preview as title
-            title = f"Message ID: {msg.id}"
-            if msg.message:
-                title = msg.message[:50] + "..." if len(msg.message) > 50 else msg.message
-            elif getattr(msg, 'file', None) and getattr(msg.file, 'name', None):
-                title = msg.file.name
-                
-            cb_text = f"{title} ({size_str})\n{date_str}"
-            cb = QCheckBox(cb_text)
-            cb.setStyleSheet("QCheckBox { font-size: 12px; color: #334155; margin-bottom: 8px; }")
-            cb.setProperty("msg_obj", msg) # Store the actual telethon message object
-            cb.stateChanged.connect(self.update_selected_count)
-            
-            self.checkboxes[tab_key].append(cb)
-            list_layout.addWidget(cb)
-            
-            # Divider
-            line = QFrame()
-            line.setFrameShape(QFrame.HLine)
-            line.setFrameShadow(QFrame.Sunken)
-            line.setStyleSheet("background-color: #F1F5F9;")
-            list_layout.addWidget(line)
+            row = SelectableMediaRow(msg)
+            row.stateChanged.connect(self.update_selected_count)
+            self.rows[tab_key].append(row)
+            list_layout.addWidget(row)
 
         scroll.setWidget(list_container)
         layout.addWidget(scroll)
         
         return tab_widget
 
-    def set_all_checkboxes(self, tab_key, state):
-        for cb in self.checkboxes.get(tab_key, []):
-            cb.setChecked(state)
+    def set_all_rows(self, tab_key, state):
+        for row in self.rows.get(tab_key, []):
+            row.setChecked(state)
 
     def update_selected_count(self):
         count = 0
         self.selected_messages.clear()
         
-        for tab_boxes in self.checkboxes.values():
-            for cb in tab_boxes:
-                if cb.isChecked():
+        for tab_rows in self.rows.values():
+            for row in tab_rows:
+                if row.isChecked():
                     count += 1
-                    self.selected_messages.append(cb.property("msg_obj"))
+                    self.selected_messages.append(row.msg)
                     
         self.lbl_selected_count.setText(f"{count} files selected")
 

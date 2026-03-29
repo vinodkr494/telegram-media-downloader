@@ -5,28 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 import os
 
-_BTN_STYLE = (
-    "QPushButton { background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 5px;"
-    " color: #334155; font-size: 12px; padding: 4px 10px; }"
-    "QPushButton:hover { background-color: #E2E8F0; }"
-    "QPushButton:disabled { color: #94A3B8; }"
-)
-
-_BATCH_BAR_DEFAULT = (
-    "QProgressBar { background-color: #E2E8F0; border: none; border-radius: 5px;"
-    " color: white; font-weight: bold; font-size: 12px; }"
-    "QProgressBar::chunk { background-color: #2BA5E4; border-radius: 5px; }"
-)
-_BATCH_BAR_PAUSED = (
-    "QProgressBar { background-color: #E2E8F0; border: none; border-radius: 5px;"
-    " color: white; font-weight: bold; font-size: 12px; }"
-    "QProgressBar::chunk { background-color: #94A3B8; border-radius: 5px; }"
-)
-_BATCH_BAR_DONE = (
-    "QProgressBar { background-color: #E2E8F0; border: none; border-radius: 5px;"
-    " color: white; font-weight: bold; font-size: 12px; }"
-    "QProgressBar::chunk { background-color: #10B981; border-radius: 5px; }"
-)
+# Styles are now moved to dark_style.qss and style.qss
 
 
 class DownloadCard(QWidget):
@@ -61,9 +40,7 @@ class DownloadCard(QWidget):
 
         # ── main card frame ─────────────────────────────────────────────────
         self.card_main = QFrame()
-        self.card_main.setStyleSheet(
-            "QFrame { background-color:#FFFFFF; border-radius:10px;"
-            " border:1px solid #E2E8F0; }")
+        self.card_main.setObjectName("DownloadCardFrame")
 
         ml = QHBoxLayout(self.card_main)
         ml.setContentsMargins(18, 16, 18, 16)
@@ -72,11 +49,8 @@ class DownloadCard(QWidget):
         # badge
         badge_text = {1:"IMG",2:"VID",3:"PDF",4:"ZIP",5:"AUD",6:"ALL"}.get(media_type,"ALL")
         badge = QLabel(badge_text)
-        badge.setFixedSize(60, 60)
+        badge.setObjectName("MediaTypeBadge")
         badge.setAlignment(Qt.AlignCenter)
-        badge.setStyleSheet(
-            "background:#2BA5E4; border-radius:30px; color:#fff;"
-            " font-size:13px; font-weight:700;")
         ml.addWidget(badge, alignment=Qt.AlignTop)
 
         # right column
@@ -86,13 +60,12 @@ class DownloadCard(QWidget):
         # row 1 – title + status badge
         tr = QHBoxLayout()
         self.lbl_title = QLabel(self.title)
-        self.lbl_title.setStyleSheet("font-weight:700; font-size:14px; color:#1E293B;")
+        self.lbl_title.setObjectName("CardTitle")
         self.lbl_title.setWordWrap(True)
 
         self.lbl_status_text = QLabel("Downloading…")
-        self.lbl_status_text.setStyleSheet(
-            "color:#F59E0B; font-weight:700; font-size:11px; padding:2px 6px;"
-            " background:#FEF3C7; border-radius:4px;")
+        self.lbl_status_text.setObjectName("StatusBadge")
+        self.lbl_status_text.setProperty("state", "active")
 
         tr.addWidget(self.lbl_title, stretch=1)
         tr.addWidget(self.lbl_status_text)
@@ -103,9 +76,7 @@ class DownloadCard(QWidget):
         pill_label = {1:"◈ Images",2:"◈ Videos",3:"◈ PDFs",
                       4:"◈ ZIPs",5:"◈ Audio",6:"◈ All Media"}.get(media_type,"◈ All Media")
         lbl_pill = QLabel(pill_label)
-        lbl_pill.setStyleSheet(
-            "background:#E0F2FE; color:#0284C7; border-radius:4px;"
-            " padding:3px 8px; font-size:11px; font-weight:600;")
+        lbl_pill.setObjectName("TypePill")
         pr.addWidget(lbl_pill)
         pr.addStretch()
         rc.addLayout(pr)
@@ -117,12 +88,12 @@ class DownloadCard(QWidget):
         self.batch_progress_bar.setFormat("%p%")
         self.batch_progress_bar.setMaximum(max(self.total_items, 1))
         self.batch_progress_bar.setValue(self.completed)
-        self.batch_progress_bar.setStyleSheet(_BATCH_BAR_DEFAULT)
+        self.batch_progress_bar.setProperty("state", "active")
         rc.addWidget(self.batch_progress_bar)
 
         self.lbl_status = QLabel(f"Downloaded {self.completed} out of {self.total_items} items")
+        self.lbl_status.setObjectName("MutedText")
         self.lbl_status.setAlignment(Qt.AlignCenter)
-        self.lbl_status.setStyleSheet("color:#475569; font-size:12px;")
         rc.addWidget(self.lbl_status)
 
         # row 4 – action buttons
@@ -130,15 +101,15 @@ class DownloadCard(QWidget):
         ar.setSpacing(6)
 
         self.btn_pause = QPushButton("▶ Resume" if self.is_paused else "⏸ Pause")
-        self.btn_pause.setStyleSheet(_BTN_STYLE)
+        self.btn_pause.setObjectName("CardButton")
         self.btn_pause.clicked.connect(self.toggle_pause)
 
         self.btn_folder = QPushButton("📂 Folder")
-        self.btn_folder.setStyleSheet(_BTN_STYLE)
+        self.btn_folder.setObjectName("CardButton")
         self.btn_folder.clicked.connect(self.open_folder)
 
         self.btn_trash = QPushButton("🗑 Remove")
-        self.btn_trash.setStyleSheet(_BTN_STYLE)
+        self.btn_trash.setObjectName("CardButton")
 
         ar.addWidget(self.btn_pause)
         ar.addWidget(self.btn_folder)
@@ -147,19 +118,16 @@ class DownloadCard(QWidget):
 
         self.btn_up = QPushButton("⬆")
         self.btn_up.setFixedWidth(30)
-        self.btn_up.setStyleSheet(_BTN_STYLE)
+        self.btn_up.setObjectName("CardButtonCompact")
         self.btn_up.setToolTip("Move queue item UP")
 
         self.btn_down = QPushButton("⬇")
         self.btn_down.setFixedWidth(30)
-        self.btn_down.setStyleSheet(_BTN_STYLE)
+        self.btn_down.setObjectName("CardButtonCompact")
         self.btn_down.setToolTip("Move queue item DOWN")
 
         self.btn_expand = QPushButton("▼ Files")
-        self.btn_expand.setStyleSheet(
-            "QPushButton { color:#2BA5E4; font-weight:700; font-size:12px;"
-            " background:transparent; border:none; padding:4px 8px; }"
-            "QPushButton:hover { text-decoration: underline; }")
+        self.btn_expand.setObjectName("ExpandButton")
         self.btn_expand.setCursor(Qt.PointingHandCursor)
         self.btn_expand.clicked.connect(self.toggle_expand)
 
@@ -177,7 +145,7 @@ class DownloadCard(QWidget):
         self.expand_area.setObjectName("expandArea")
 
         ea_layout = QVBoxLayout(self.expand_area)
-        ea_layout.setContentsMargins(12, 10, 12, 10)
+        ea_layout.setContentsMargins(12, 4, 12, 4)
         ea_layout.setSpacing(8)
 
         hdr = QLabel("FILES IN THIS QUEUE")
@@ -202,62 +170,7 @@ class DownloadCard(QWidget):
         self.scroll.setWidget(self.files_container)
         ea_layout.addWidget(self.scroll)
 
-        self.expand_area.setStyleSheet("""
-        #expandArea {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-top: none;
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
-        }
-
-        #queueHeader {
-            color: #94a3b8;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            padding: 2px 2px 2px 2px;
-            background: transparent;
-            border: none;
-        }
-
-        #queueScroll {
-            background: transparent;
-            border: none;
-        }
-
-        #queueScroll > QWidget > QWidget {
-            background: transparent;
-        }
-
-        #filesContainer {
-            background: transparent;
-        }
-
-        QScrollBar:vertical {
-            background: transparent;
-            width: 10px;
-            margin: 2px 0 2px 0;
-        }
-
-        QScrollBar::handle:vertical {
-            background: #cbd5e1;
-            border-radius: 5px;
-            min-height: 24px;
-        }
-
-        QScrollBar::handle:vertical:hover {
-            background: #94a3b8;
-        }
-
-        QScrollBar::add-line:vertical,
-        QScrollBar::sub-line:vertical,
-        QScrollBar::add-page:vertical,
-        QScrollBar::sub-page:vertical {
-            background: none;
-            border: none;
-        }
-        """)
+        # Styles are now controlled by object names in QSS
 
         outer.addWidget(self.expand_area)
 
@@ -303,10 +216,12 @@ class DownloadCard(QWidget):
 
     def _set_completed_style(self):
         self.lbl_status_text.setText("Completed ✓")
-        self.lbl_status_text.setStyleSheet(
-            "color:#10B981; font-weight:700; font-size:11px; padding:2px 6px;"
-            " background:#D1FAE5; border-radius:4px;")
-        self.batch_progress_bar.setStyleSheet(_BATCH_BAR_DONE)
+        self.lbl_status_text.setProperty("state", "completed")
+        self.batch_progress_bar.setProperty("state", "completed")
+        self.lbl_status_text.style().unpolish(self.lbl_status_text)
+        self.lbl_status_text.style().polish(self.lbl_status_text)
+        self.batch_progress_bar.style().unpolish(self.batch_progress_bar)
+        self.batch_progress_bar.style().polish(self.batch_progress_bar)
 
     def populate_files(self):
         def fmt(size):
@@ -324,9 +239,9 @@ class DownloadCard(QWidget):
 
     def update_file_progress(self, msg_id, current_bytes, total_bytes, speed_str):
         self.lbl_status_text.setText(f"⬇ {speed_str}")
-        self.lbl_status_text.setStyleSheet(
-            "color:#F59E0B; font-weight:700; font-size:11px; padding:2px 6px;"
-            " background:#FEF3C7; border-radius:4px;")
+        self.lbl_status_text.setProperty("state", "active")
+        self.lbl_status_text.style().unpolish(self.lbl_status_text)
+        self.lbl_status_text.style().polish(self.lbl_status_text)
         if msg_id in self.file_rows:
             self.file_rows[msg_id].set_progress(current_bytes, total_bytes)
 
@@ -340,23 +255,25 @@ class DownloadCard(QWidget):
             self.parent_worker.pause_download(self.task_id)
             self.btn_pause.setText("▶ Resume")
             self.lbl_status_text.setText("Paused")
-            self.lbl_status_text.setStyleSheet(
-                "color:#EF4444; font-weight:700; font-size:11px; padding:2px 6px;"
-                " background:#FEE2E2; border-radius:4px;")
-            self.batch_progress_bar.setStyleSheet(_BATCH_BAR_PAUSED)
+            self.lbl_status_text.setProperty("state", "paused")
+            self.batch_progress_bar.setProperty("state", "paused")
         else:
-            channel_input = self.task_id.split('_')[0]
-            media_id      = int(self.task_id.split('_')[1])
+            channel_input, media_id_str = self.task_id.rsplit('_', 1)
+            media_id = int(media_id_str)
             self.parent_worker.start_download(
                 channel_input=channel_input, media_id=media_id,
                 download_path=self.download_path, download_limit=self.download_limit,
                 max_speed_kb=self.max_speed_kb)
             self.btn_pause.setText("⏸ Pause")
             self.lbl_status_text.setText("Downloading…")
-            self.lbl_status_text.setStyleSheet(
-                "color:#F59E0B; font-weight:700; font-size:11px; padding:2px 6px;"
-                " background:#FEF3C7; border-radius:4px;")
-            self.batch_progress_bar.setStyleSheet(_BATCH_BAR_DEFAULT)
+            self.lbl_status_text.setProperty("state", "active")
+            self.batch_progress_bar.setProperty("state", "active")
+        
+        # Force style refresh for properties
+        self.lbl_status_text.style().unpolish(self.lbl_status_text)
+        self.lbl_status_text.style().polish(self.lbl_status_text)
+        self.batch_progress_bar.style().unpolish(self.batch_progress_bar)
+        self.batch_progress_bar.style().polish(self.batch_progress_bar)
 
     def open_folder(self):
         if os.path.exists(self.folder_name):
@@ -372,10 +289,10 @@ class DownloadCard(QWidget):
 class FileRow(QWidget):
     def __init__(self, msg_id, filename, size_str, row_index=0):
         super().__init__()
-        self.msg_id = msg_id
-        bg = "#F8FAFC" if row_index % 2 == 0 else "#FFFFFF"
-        self.setStyleSheet(f"QWidget {{ background:{bg}; border:none; }}")
-        self.setFixedHeight(30)
+        self.setObjectName("FileRow")
+        self.setProperty("alt", row_index % 2 == 1)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setFixedHeight(34) # Slightly taller for better readability
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 0, 10, 0)
@@ -383,16 +300,14 @@ class FileRow(QWidget):
 
         self.icon = QLabel("⏳")
         self.icon.setFixedWidth(18)
-        self.icon.setStyleSheet("border:none; font-size:12px;")
+        self.icon.setObjectName("FileRowIcon")
 
         self.lbl_name = QLabel(filename)
-        self.lbl_name.setStyleSheet(
-            "border:none; font-size:12px; color:#334155;")
+        self.lbl_name.setObjectName("FileRowName")
 
         self.lbl_size = QLabel(size_str)
         self.lbl_size.setFixedWidth(58)
-        self.lbl_size.setStyleSheet(
-            "border:none; font-size:11px; color:#94A3B8;")
+        self.lbl_size.setObjectName("FileRowSize")
         self.lbl_size.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
         self.bar = QProgressBar()
@@ -401,9 +316,8 @@ class FileRow(QWidget):
         self.bar.setTextVisible(False)
         self.bar.setMaximum(100)
         self.bar.setValue(0)
-        self.bar.setStyleSheet(
-            "QProgressBar { background:#E2E8F0; border:none; border-radius:2px; }"
-            "QProgressBar::chunk { background:#CBD5E1; border-radius:2px; }")
+        self.bar.setObjectName("FileProgressBar")
+        self.bar.setProperty("state", "idle")
 
         layout.addWidget(self.icon)
         layout.addWidget(self.lbl_name, stretch=3)
@@ -414,14 +328,14 @@ class FileRow(QWidget):
         if total:
             pct = int(current * 100 / total)
             self.bar.setValue(pct)
-        self.bar.setStyleSheet(
-            "QProgressBar { background:#E2E8F0; border:none; border-radius:3px; }"
-            "QProgressBar::chunk { background:#2BA5E4; border-radius:3px; }")
+        self.bar.setProperty("state", "active")
+        self.bar.style().unpolish(self.bar)
+        self.bar.style().polish(self.bar)
         self.icon.setText("⬇️")
 
     def set_completed(self):
         self.bar.setValue(100)
-        self.bar.setStyleSheet(
-            "QProgressBar { background:#E2E8F0; border:none; border-radius:3px; }"
-            "QProgressBar::chunk { background:#10B981; border-radius:3px; }")
+        self.bar.setProperty("state", "completed")
+        self.bar.style().unpolish(self.bar)
+        self.bar.style().polish(self.bar)
         self.icon.setText("✅")

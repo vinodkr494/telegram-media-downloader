@@ -11,6 +11,15 @@ from workers.telegram_worker import TelegramWorker
 import ui.app
 
 def main():
+    # 0. Windows Taskbar Icon Fix (Set AppUserModelID)
+    try:
+        if os.name == 'nt':
+            import ctypes
+            myappid = f'vinodkumar.tgdownloader.{APP_VERSION}'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception:
+        pass
+
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
     load_dotenv(dotenv_path=env_path)
     
