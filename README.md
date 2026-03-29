@@ -140,6 +140,11 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 
 ## Changelog
 
+### v2.4.3
+- 🆔 **Robust Numeric IDs** — aggressively normalizes private channel numeric IDs (automatically applying `-100` prefixes) to prevent `PeerUser` fetch errors
+- 📦 **Deep Dialog Scanning** — automatically requests and searches all `Archived` dialogs if a private channel ID isn't found in the active chat list
+- 🛑 **Error Diagnostics** — updated MainWindow status tracking to avoid getting stuck "Fetching..." forever when an ID lookup fundamentally fails
+
 ### v2.4.2
 - 🎭 **Premium Card UI** — implemented a sleek card-based layout for the media browser tabs
 - 💾 **Persistent Themes** — fixed theme restoration bug, ensuring light/dark mode sticks across sessions

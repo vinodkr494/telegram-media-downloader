@@ -57,11 +57,75 @@ async def fetch_channel(client, channel_input):
     Fetch a channel by username or ID.
     If input is pure digits or starts with -100, treat as integer ID.
     """
-    if str(channel_input).startswith("-100") or str(channel_input).isdigit():
-        channel_input = int(channel_input)
+    original_input = str(channel_input).strip()
     
-    channel = await client.get_entity(channel_input)
-    return channel
+    # Pre-processing: aggressively normalize numeric channel IDs
+    if original_input.isdigit() or (original_input.startswith("-") and original_input[1:].isdigit()):
+        clean_id = original_input.replace("-", "")
+        
+        # If the user included the '100' prefix but forgot the negative sign: 1001553086349
+        if clean_id.startswith("100") and len(clean_id) >= 12:
+            channel_input = int(f"-{clean_id}")
+        # If the user provided the raw short ID: 1553086349
+        elif not original_input.startswith("-") and len(original_input) >= 8:
+            channel_input = int(f"-100{original_input}")
+        else:
+            # It was either correctly formatted like -1001553086349 or it's a small group ID
+            channel_input = int(original_input)
+            
+        # Update original_input so fallback search uses the perfectly normalized -100... format
+        original_input = str(channel_input)
+            
+    try:
+        # First attempt: direct get_entity
+        channel = await client.get_entity(channel_input)
+        return channel
+    except Exception as e:
+        # Second attempt: if direct lookup fails (common for private entities),
+        # try to find it in ALL dialogs of the current user.
+        print(f"Direct lookup for {original_input} failed ({e}). Searching through dialogs... this may take a moment.")
+        active_count = 0
+        archived_count = 0
+        try:
+            # Check Active Dialogs
+            async for dialog in client.iter_dialogs():
+                active_count += 1
+                d_id = str(dialog.id)
+                o_id = str(original_input)
+                if d_id == o_id or d_id.replace("-100", "", 1) == o_id.replace("-100", "", 1):
+                    print(f"Found entity in active dialogs (checked {active_count}): {dialog.title}")
+                    return dialog.entity
+                    
+            # Check Archived Dialogs
+            print(f"Not in active dialogs (checked {active_count}). Searching archived dialogs...")
+            async for dialog in client.iter_dialogs(archived=True):
+                archived_count += 1
+                d_id = str(dialog.id)
+                o_id = str(original_input)
+                if d_id == o_id or d_id.replace("-100", "", 1) == o_id.replace("-100", "", 1):
+                    print(f"Found entity in archived dialogs (checked {archived_count}): {dialog.title}")
+                    return dialog.entity
+                    
+            print(f"Channel {original_input} was completely missing from all {active_count} active and {archived_count} archived chats.")
+        except Exception as dialog_err:
+            print(f"Dialog search also failed: {dialog_err}")
+                 
+        # Final attempt: if it's numeric and it failed, maybe try adding -100 if it lacks it
+        if isinstance(channel_input, int) and channel_input > 0 and not str(channel_input).startswith("-100"):
+            try:
+                alt_id = int(f"-100{channel_input}")
+                channel = await client.get_entity(alt_id)
+                return channel
+            except: pass
+            
+        error_msg = f"Telegram completely declined access to {channel_input}."
+        if "Could not find the input entity" in str(e):
+            error_msg += (
+                f"\n\nWe scanned all {active_count} active and {archived_count} archived dialogs on this account, and the ID {original_input} is not among them."
+                f"\n\nTo fix this:\n1. Open the channel on your phone to refresh it to the top of your chat list.\n2. Ensure you are logged into the correct Telegram account covering these chats.\n3. OR bypass this entirely by pasting the invite link (https://t.me/...) into the search bar."
+            )
+            
+        raise Exception(error_msg) # Re-raise with the helpful tip
 import time
 
 async def download_single_file(message, folder_name, progress_cb=None, complete_cb=None, cancel_event=None, max_speed_kb=None):

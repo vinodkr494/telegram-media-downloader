@@ -311,7 +311,7 @@ class MainWindow(QMainWindow):
         self.worker.signals.file_progress.connect(self.update_file_progress)
         self.worker.signals.file_completed.connect(self.on_file_completed)
         self.worker.signals.download_completed.connect(self.on_download_completed)
-        self.worker.signals.error_occurred.connect(lambda ch, e: QMessageBox.critical(self, "Download Error", f"Error in {ch}:\n{e}"))
+        self.worker.signals.error_occurred.connect(self.on_fetch_error)
 
     def on_download_completed(self, task_id, folder_name):
         if task_id in self.card_widgets:
@@ -405,6 +405,11 @@ class MainWindow(QMainWindow):
                 max_speed_kb=cfg.get("max_speed_kb", 0),
                 selected_message_ids=selected_ids
             )
+
+    def on_fetch_error(self, channel, err_msg):
+        self.btn_fetch.setText("🔍 Fetch Media")
+        self.btn_fetch.setEnabled(True)
+        QMessageBox.critical(self, "Fetch Error", f"Failed to fetch content for {channel}:\n{err_msg}")
 
     def add_download_card(self, data, total_items):
         task_id = data["task_id"]

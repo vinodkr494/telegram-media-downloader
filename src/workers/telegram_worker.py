@@ -115,6 +115,8 @@ class TelegramWorker(QThread):
             if not await self.client.is_user_authorized():
                 self.signals.auth_needed.emit()
             else:
+                # Pre-fetch dialogs to populate entity cache (helps resolving numeric IDs)
+                await self.client.get_dialogs(limit=50)
                 self.signals.auth_success.emit()
         except Exception as e:
             self.signals.auth_error.emit(str(e))
@@ -136,6 +138,7 @@ class TelegramWorker(QThread):
                     await self.client.send_code_request(phone)
                     self.signals.code_needed.emit(phone)
                 else:
+                    await self.client.get_dialogs(limit=50)
                     self.signals.auth_success.emit()
             except Exception as e:
                 self.signals.auth_error.emit(str(e))
@@ -148,6 +151,7 @@ class TelegramWorker(QThread):
             try:
                 from telethon.errors import SessionPasswordNeededError
                 await self.client.sign_in(getattr(self, 'current_phone', ''), code)
+                await self.client.get_dialogs(limit=50)
                 self.signals.auth_success.emit()
             except SessionPasswordNeededError:
                 self.signals.password_needed.emit()
@@ -159,6 +163,7 @@ class TelegramWorker(QThread):
         async def _pwd():
             try:
                 await self.client.sign_in(password=password)
+                await self.client.get_dialogs(limit=50)
                 self.signals.auth_success.emit()
             except Exception as e:
                 self.signals.auth_error.emit(str(e))
