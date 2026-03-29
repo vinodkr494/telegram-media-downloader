@@ -16,6 +16,24 @@ from telethon.tl.types import (
 )
 
 STATE_FILE = "download_state.json"
+TASKS_FILE = "active_tasks.json"
+
+def load_active_tasks():
+    if os.path.exists(TASKS_FILE):
+        try:
+            with open(TASKS_FILE, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading tasks: {e}")
+            return []
+    return []
+
+def save_active_tasks(tasks):
+    try:
+        with open(TASKS_FILE, "w") as f:
+            json.dump(tasks, f)
+    except Exception as e:
+        print(f"Error saving tasks: {e}")
 
 def load_download_state():
     if os.path.exists(STATE_FILE):
