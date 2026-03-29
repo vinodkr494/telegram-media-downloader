@@ -8,3 +8,5 @@ download_state.json
 downloads/
 __pycache__/
 *.pyc
+*.patch
+*.pyi
