@@ -7,22 +7,18 @@ Telegram Bulk Media Downloader is a Python-based desktop app that lets you brows
 
 ---
 
-## ✨ What's New in v2.4.1 (PySide6 Rewrite)
+## ✨ What's New in v2.4.2 (UI Polishing & Fixes)
 
-### 🚀 Modern PySide6 Desktop GUI
-The entire project has been rewritten from **v2.3 (CustomTkinter)** to **v2.4 (PySide6)**. This brings native OS drawing, better performance, and a more robust multi-threaded architecture that keeps the interface responsive even during heavy downloads.
+### 🎨 Premium Media Browser UI
+The media selection interface has been upgraded to a **modern card-based layout**. This provides better visual feedback for file types and improves clarity when selecting multiple items for download.
 
-### 🏗️ Modular Design
-A new sidebar-based layout separates concerns into **Home**, **Queue**, **Settings**, and **About** views. This makes navigation faster and allows for future expansion into more advanced features.
+### 🌓 Robust Theme Persistence
+Your preference for **Light or Dark mode** is now saved and restored instantly upon restart, ensuring a consistent user experience.
 
-### 📥 Enhanced Downloads Queue
-Active downloads are now tracked in a dedicated **Queue** tab. Each download "card" shows high-level progress while managing its own background workers for individual files.
-
-### 🌑 Premium Light/Dark Theming
-Full support for a sleek **Dark Mode** and a clean **Light Mode** powered by custom QSS (Qt Style Sheets). Switch on-the-fly from the sidebar without restarting the app.
-
-### 🔒 Robust Authentication Flow
-A completely redesigned login experience that handles phone numbers, OTP codes, and 2FA (Cloud Passwords) with clear, step-by-step guidance.
+### 🛠️ UI/UX Enhancements
+- **Clean Empty States**: Beautiful placeholders for the Home and Queue views when no tasks are active.
+- **Smart Queue Controls**: "Pause All" and "Resume All" buttons now only appear when relevant, keeping the interface clean.
+- **Smooth Navigation**: Refined sidebar transitions and icon persistence.
 
 ---
 
@@ -46,9 +42,26 @@ A completely redesigned login experience that handles phone numbers, OTP codes, 
 
 ## Screenshots
 
-![Login Screen](screenshots/app_v2_login.png)
-![Phone Number Verification](screenshots/phone_verification.png)
-![Home View - Active Queue](screenshots/app_v2.png)
+<p align="center">
+  <img src="screenshots/screenshot_v2.4.1/login-v2.4.1.png" width="400" alt="Login Screen">
+  <img src="screenshots/screenshot_v2.4.1/otp-v2.4.1.png" width="400" alt="OTP Verification">
+</p>
+
+<p align="center">
+  <img src="screenshots/screenshot_v2.4.1/after_login_v2.4.1.png" width="800" alt="Home View">
+</p>
+
+<p align="center">
+  <img src="screenshots/screenshot_v2.4.1/media_selection.png" width="800" alt="Media Browser Card UI">
+</p>
+
+<p align="center">
+  <img src="screenshots/screenshot_v2.4.1/download_queue_v2.4.1.png" width="800" alt="Enhanced Download Queue">
+</p>
+
+<p align="center">
+  <img src="screenshots/screenshot_v2.4.1/settingsv2.4.1.png" width="800" alt="Settings & Theming">
+</p>
 
 ## Requirements
 
@@ -126,6 +139,12 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 | GIFs | Telegram animated GIFs |
 
 ## Changelog
+
+### v2.4.2
+- 🎭 **Premium Card UI** — implemented a sleek card-based layout for the media browser tabs
+- 💾 **Persistent Themes** — fixed theme restoration bug, ensuring light/dark mode sticks across sessions
+- 🧹 **UI Cleanup** — refined empty state logic and dynamic visibility of queue controls
+- 🐞 **General Fixes** — resolved several minor layout and focus issues for a more stable experience
 
 ### v2.4.1
 - 🚀 **Full PySide6 Rewrite** — migrated from CustomTkinter for native performance

@@ -269,46 +269,55 @@ class TelegramWorker(QThread):
     async def _download_coro(self, channel_input, media_id, download_path, download_limit, max_speed_kb, is_paused, selected_message_ids):
         try:
             channel = await fetch_channel(self.client, channel_input)
-            task_id = f"{channel_input}_{media_id}"
+            # Use the canonical numeric ID for task identification once resolved
+            resolved_chan_id = str(channel.id)
+            task_id = f"{resolved_chan_id}_{media_id}"
             title = channel.title or f"Channel ID: {channel.id}"
             
-            # 1. Clean up potential duplicates in active_tasks.json now that we know the true channel ID
+            # 1. Update active_tasks.json to use the numeric ID for future persistence
             try:
                 tasks = load_active_tasks()
-                deduped_tasks = []
-                seen_channel_ids = set()
+                updated_tasks = []
+                found_and_updated = False
                 
-                # We want to keep the current task and remove any others that resolve to the same numeric channel ID
-                # To be safe, we'll only deduplicate if the media_id matches too.
                 for tk in tasks:
                     match = False
-                    # Check if this task in the list matches our current resolved channel
+                    tk_chan = str(tk.get("channel_input"))
+                    # If this is the task we just resolved (either by input string or numeric ID)
                     if tk.get("media_id") == media_id:
-                        # If it's the exact same input, it's definitely a duplicate
-                        if str(tk.get("channel_input")) == str(channel_input):
-                            match = True
-                        # If it's a numeric ID that matches our resolved ID
-                        elif str(tk.get("channel_input")).replace("-100", "") == str(channel.id).replace("-100", ""):
+                        if tk_chan == str(channel_input) or tk_chan.replace("-100", "") == resolved_chan_id.replace("-100", ""):
                             match = True
                     
-                    if match:
-                        if task_id not in seen_channel_ids:
-                            seen_channel_ids.add(task_id)
-                            deduped_tasks.append(tk)
+                    if match and not found_and_updated:
+                        tk["channel_input"] = resolved_chan_id
+                        updated_tasks.append(tk)
+                        found_and_updated = True
                     else:
-                        deduped_tasks.append(tk)
-                save_active_tasks(deduped_tasks)
-            except Exception as e:
-                print(f"Deduplication error: {e}")
+                        updated_tasks.append(tk)
                 
-            # 2. Emit placeholder so the card appears instantly
+                # If for some reason it wasn't in the list, add it now (integrity check)
+                if not found_and_updated:
+                    updated_tasks.append({
+                        "channel_input": resolved_chan_id,
+                        "media_id": media_id,
+                        "paused": is_paused,
+                        "download_path": download_path,
+                        "download_limit": download_limit,
+                        "max_speed_kb": max_speed_kb,
+                        "selected_message_ids": selected_message_ids
+                    })
+                save_active_tasks(updated_tasks)
+            except Exception as e:
+                print(f"Persistence update error: {e}")
+                
+            # 2. Emit placeholder so the card appears (using the stable numeric task_id)
             self.signals.channel_fetched.emit({
                 "task_id": task_id,
                 "title": f"⏳ Loading... ({title})",
                 "total_items": 0,
                 "completed": 0,
                 "folder_name": download_path,
-                "channel_input": channel_input,
+                "channel_input": resolved_chan_id,
                 "media_id": media_id,
                 "is_paused": is_paused,
                 "download_path": download_path,
@@ -333,50 +342,9 @@ class TelegramWorker(QThread):
             folder_name = os.path.join(download_path, channel.title or str(channel.id), base_folder.get(media_id, "all_media"))
             os.makedirs(folder_name, exist_ok=True)
             
-            task_id = f"{channel.id}_{media_id}"
-            title = channel.title or f"Channel ID: {channel.id}"
-            
-            # Collect file metadata for the UI list
-            files_metadata = []
-            for msg in messages:
-                fname = f"Message_{msg.id}"
-                fsize = 0
-                try:
-                    if getattr(msg, 'document', None):
-                        # Safe file name extraction
-                        file_ext = ""
-                        if hasattr(msg, 'file') and msg.file:
-                            fname = msg.file.name or fname
-                            file_ext = msg.file.ext or ""
-                        
-                        if fname == f"Message_{msg.id}":
-                            fname = f"Document_{msg.id}{file_ext}"
-                            
-                        fsize = getattr(msg.document, 'size', 0)
-                        
-                    elif getattr(msg, 'photo', None):
-                        fname = f"Photo_{msg.id}.jpg"
-                        if hasattr(msg.photo, 'sizes') and msg.photo.sizes:
-                            # Iterate backwards to find the largest size
-                            for s in reversed(msg.photo.sizes):
-                                if hasattr(s, 'size'):
-                                    fsize = s.size
-                                    break
-                except Exception as e:
-                    print(f"Warning: metadata extraction for {msg.id} failed: {e}")
-
-                files_metadata.append({
-                    "id": msg.id,
-                    "name": fname,
-                    "size": fsize,
-                    "completed": msg.id in self.downloaded_state
-                })
-
-            global_cancel_event = asyncio.Event()
-            global_cancel_event.clear()
-            self.task_cancel_events[task_id] = global_cancel_event
-            if is_paused:
-                global_cancel_event.set()
+            # Ensure folder_name is absolute or correctly rooted
+            if not os.path.isabs(folder_name):
+                folder_name = os.path.abspath(folder_name)
 
             # 4. Emit the REAL metadata to update the placeholder card
             self.signals.channel_fetched.emit({
@@ -385,7 +353,53 @@ class TelegramWorker(QThread):
                 "total_items": total_items,
                 "completed": completed_initial,
                 "folder_name": folder_name,
-                "channel_input": channel_input,
+                "channel_input": resolved_chan_id,
+                "media_id": media_id,
+                "is_paused": is_paused,
+                "download_path": download_path,
+                "download_limit": download_limit,
+                "max_speed_kb": max_speed_kb,
+                "files_metadata": [] # Will populate in Card's refresh_from_metadata
+            }, total_items)
+            
+            # Build actual files_metadata for current messages
+            files_metadata = []
+            for msg in messages:
+                fname = f"Message_{msg.id}"
+                fsize = 0
+                try:
+                    if getattr(msg, 'document', None):
+                        file_ext = ""
+                        if hasattr(msg, 'file') and msg.file:
+                            fname = msg.file.name or fname
+                            file_ext = msg.file.ext or ""
+                        if fname == f"Message_{msg.id}":
+                            fname = f"Document_{msg.id}{file_ext}"
+                        fsize = getattr(msg.document, 'size', 0)
+                    elif getattr(msg, 'photo', None):
+                        fname = f"Photo_{msg.id}.jpg"
+                        if hasattr(msg.photo, 'sizes') and msg.photo.sizes:
+                            for s in reversed(msg.photo.sizes):
+                                if hasattr(s, 'size'):
+                                    fsize = s.size
+                                    break
+                except Exception: pass
+
+                files_metadata.append({
+                    "id": msg.id,
+                    "name": fname,
+                    "size": fsize,
+                    "completed": msg.id in self.downloaded_state
+                })
+
+            # Update the same card again with full file list
+            self.signals.channel_fetched.emit({
+                "task_id": task_id,
+                "title": title,
+                "total_items": total_items,
+                "completed": completed_initial,
+                "folder_name": folder_name,
+                "channel_input": resolved_chan_id,
                 "media_id": media_id,
                 "is_paused": is_paused,
                 "download_path": download_path,
@@ -394,6 +408,12 @@ class TelegramWorker(QThread):
                 "files_metadata": files_metadata
             }, total_items)
             
+            global_cancel_event = asyncio.Event()
+            global_cancel_event.clear()
+            self.task_cancel_events[task_id] = global_cancel_event
+            if is_paused:
+                global_cancel_event.set()
+
             if not messages_to_download or is_paused:
                 if not messages_to_download:
                     self.signals.download_completed.emit(task_id, folder_name)
@@ -407,15 +427,13 @@ class TelegramWorker(QThread):
                     completed_count[0] += 1
                     self.signals.download_progress.emit(task_id, completed_count[0], total_items)
                     if completed_count[0] >= total_items:
-                        # Remove from active tasks
+                        # Remove from active tasks using the stable numeric ID
                         try:
-                            t_chan, t_media_str = task_id.rsplit('_', 1)
-                            t_media = int(t_media_str)
                             tkList = load_active_tasks()
-                            tkList = [tk for tk in tkList if not (str(tk.get("channel_input")) == t_chan and tk.get("media_id") == t_media)]
+                            tkList = [tk for tk in tkList if not (str(tk.get("channel_input")) == resolved_chan_id and tk.get("media_id") == media_id)]
                             save_active_tasks(tkList)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f"Error removing task: {e}")
                         
                         self.signals.download_completed.emit(task_id, folder_name)
 
