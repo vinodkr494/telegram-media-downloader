@@ -14,6 +14,7 @@ def load_config():
         "download_path": "downloads",
         "download_limit": 5,
         "max_speed_kb": 0,
+        "dark_mode": None,  # None = follow Windows system setting
         "proxy": {
             "enabled": False,
             "type": "SOCKS5",

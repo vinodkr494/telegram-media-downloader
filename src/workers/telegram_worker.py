@@ -446,6 +446,8 @@ class TelegramWorker(QThread):
                 self.signals.file_progress.emit(task_id, msg_id, current, total, speed_str)
 
             await download_in_batches_headless(
+                client=self.client,
+                channel=channel,
                 messages=messages_to_download,
                 folder_name=folder_name,
                 batch_size=download_limit,

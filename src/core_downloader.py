@@ -128,7 +128,7 @@ async def fetch_channel(client, channel_input):
         raise Exception(error_msg) # Re-raise with the helpful tip
 import time
 
-async def download_single_file(message, folder_name, progress_cb=None, complete_cb=None, cancel_event=None, max_speed_kb=None):
+async def download_single_file(client, channel, message, folder_name, progress_cb=None, complete_cb=None, cancel_event=None, max_speed_kb=None):
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -224,12 +224,20 @@ async def download_single_file(message, folder_name, progress_cb=None, complete_
                 wait_time = getattr(e, 'seconds', 2)
                 print(f"Error downloading {message.id}, retrying in {wait_time}s ({attempt+1}/{max_retries}): {e}")
                 await asyncio.sleep(wait_time)
+                # Manually refresh the message to bypass FileReferenceExpiredError for invite-link channels
+                if client and channel:
+                    try:
+                        refreshed = await client.get_messages(channel, ids=message.id)
+                        if refreshed:
+                            message = refreshed
+                    except Exception as refresh_e:
+                        print(f"Message refresh failed: {refresh_e}")
             else:
                 print(f"Error downloading message {message.id} after {max_retries} attempts: {e}")
                 if complete_cb:
                     complete_cb(message.id, paused=False) # Marked as complete to not block pipeline
 
-async def download_in_batches_headless(messages, folder_name, batch_size, downloaded_state, progress_cb, complete_cb, task_cancel_event=None, max_speed_kb=None):
+async def download_in_batches_headless(client, channel, messages, folder_name, batch_size, downloaded_state, progress_cb, complete_cb, task_cancel_event=None, max_speed_kb=None):
     semaphore = asyncio.Semaphore(batch_size)
     
     def internal_complete(msg_id, paused=False, filepath=None):
@@ -244,7 +252,7 @@ async def download_in_batches_headless(messages, folder_name, batch_size, downlo
             if task_cancel_event and task_cancel_event.is_set():
                 if complete_cb: complete_cb(message.id, paused=True, filepath=None)
                 return
-            await download_single_file(message, folder_name, progress_cb, internal_complete, task_cancel_event, max_speed_kb)
+            await download_single_file(client, channel, message, folder_name, progress_cb, internal_complete, task_cancel_event, max_speed_kb)
 
     tasks = [download_message(m) for m in messages if m.id not in downloaded_state]
     if tasks:

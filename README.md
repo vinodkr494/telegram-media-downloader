@@ -7,18 +7,21 @@ Telegram Bulk Media Downloader is a Python-based desktop app that lets you brows
 
 ---
 
-## ✨ What's New in v2.4.2 (UI Polishing & Fixes)
+## ✨ What's New in v2.4.4 (Bug Fixes & Cross-Platform Improvements)
 
-### 🎨 Premium Media Browser UI
-The media selection interface has been upgraded to a **modern card-based layout**. This provides better visual feedback for file types and improves clarity when selecting multiple items for download.
+### 🔗 Invite-Link Download Fix
+Downloading media from **private channels joined via an invite link** now works correctly. Previously, the folder was created but no files were downloaded due to a `FileReferenceExpiredError` — Telethon's internal cache couldn't locate the channel by numeric ID after an invite-link join. The downloader now manually refreshes the message entity using the fully-resolved channel object on every retry, bypassing the cache issue entirely.
 
-### 🌓 Robust Theme Persistence
-Your preference for **Light or Dark mode** is now saved and restored instantly upon restart, ensuring a consistent user experience.
+### 🌓 Cross-Platform Dark Mode Detection
+The app now **auto-detects the OS dark mode preference** at startup:
+- **Windows** — reads `AppsUseLightTheme` from the Windows registry
+- **macOS** — queries `AppleInterfaceStyle` via `defaults read`
+- **Linux** — checks GTK theme via `gsettings` or the `$GTK_THEME` env var
 
-### 🛠️ UI/UX Enhancements
-- **Clean Empty States**: Beautiful placeholders for the Home and Queue views when no tasks are active.
-- **Smart Queue Controls**: "Pause All" and "Resume All" buttons now only appear when relevant, keeping the interface clean.
-- **Smooth Navigation**: Refined sidebar transitions and icon persistence.
+Your manually chosen theme is still saved to `config.json` and takes priority over the system setting.
+
+### 🎨 Correct Startup Theme (No More Black Flash)
+Fixed a bug where launching the exe on Windows Dark Mode would show a black/unstyled window on startup before the light theme loaded. The app now loads the correct theme immediately, and the sidebar toggle button syncs to match.
 
 ---
 
@@ -139,6 +142,12 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 | GIFs | Telegram animated GIFs |
 
 ## Changelog
+
+### v2.4.4
+- 🔗 **Invite-Link Download Fix** — media from private channels fetched via invite links now downloads correctly; fixed `FileReferenceExpiredError` by manually refreshing the message entity using the resolved channel object on retry
+- 🌓 **Cross-Platform Dark Mode Detection** — app now auto-detects OS dark mode at startup (Windows registry, macOS `defaults`, Linux `gsettings`/`$GTK_THEME`)
+- 🎨 **Startup Theme Fix** — eliminated black flash on Windows Dark Mode; sidebar toggle button now syncs to the detected theme on launch
+- 💾 **Theme Persistence** — user's chosen theme is saved to `config.json` and restored on next launch, overriding the system default
 
 ### v2.4.3
 - 🆔 **Robust Numeric IDs** — aggressively normalizes private channel numeric IDs (automatically applying `-100` prefixes) to prevent `PeerUser` fetch errors
