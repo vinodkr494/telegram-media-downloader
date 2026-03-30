@@ -218,6 +218,9 @@ class TelegramWorker(QThread):
                 # Only overwrite selected_message_ids if it's explicitly provided
                 if selected_message_ids is not None:
                     t["selected_message_ids"] = selected_message_ids
+                else:
+                    # If resuming, use the already stored selected_message_ids
+                    selected_message_ids = t.get("selected_message_ids")
                 found = True
                 break
         if not found:
@@ -238,15 +241,18 @@ class TelegramWorker(QThread):
         )
 
     def pause_download(self, task_id):
-        if task_id in self.task_cancel_events:
-            self.task_cancel_events[task_id].set()
+        if self.loop and task_id in self.task_cancel_events:
+            event = self.task_cancel_events[task_id]
+            self.loop.call_soon_threadsafe(event.set)
             
         try:
             channel_input, media_id_str = task_id.rsplit('_', 1)
             media_id = int(media_id_str)
             tasks = load_active_tasks()
             for t in tasks:
-                if str(t.get("channel_input")) == channel_input and t.get("media_id") == media_id:
+                # Find task by numeric ID OR original input
+                tk_chan = str(t.get("channel_input"))
+                if tk_chan.replace("-100", "") == channel_input.replace("-100", "") and t.get("media_id") == media_id:
                     t["paused"] = True
                     break
             save_active_tasks(tasks)
@@ -254,7 +260,7 @@ class TelegramWorker(QThread):
             pass
 
     def resume_download(self, channel_input, media_id, download_path, download_limit, max_speed_kb):
-        # Pass None so it finds remaining
+        # Explicitly pass is_paused=False to resume
         self.start_download(channel_input, media_id, download_path, download_limit, max_speed_kb, is_paused=False, selected_message_ids=None)
         
     def cancel_download(self, task_id):
@@ -266,8 +272,14 @@ class TelegramWorker(QThread):
             channel_input, media_id_str = task_id.rsplit('_', 1)
             media_id = int(media_id_str)
             tasks = load_active_tasks()
-            tasks = [t for t in tasks if not (str(t.get("channel_input")) == channel_input and t.get("media_id") == media_id)]
-            save_active_tasks(tasks)
+            # More robust matching for deletion
+            new_tasks = []
+            for t in tasks:
+                tk_chan = str(t.get("channel_input"))
+                if tk_chan.replace("-100", "") == channel_input.replace("-100", "") and t.get("media_id") == media_id:
+                    continue
+                new_tasks.append(t)
+            save_active_tasks(new_tasks)
         except Exception:
             pass
 

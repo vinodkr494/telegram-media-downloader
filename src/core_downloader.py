@@ -160,66 +160,57 @@ async def download_single_file(client, channel, message, folder_name, progress_c
             last_bytes = [0]
             cancelled_by_event = [False]
             
+            class PauseRequested(Exception): pass
+            
             async def internal_progress(current, total):
-                # Use a flag instead of raise - raising CancelledError inside
-                # a Telethon progress callback causes it to propagate incorrectly
-                # through Telethon's own download pipeline
                 if cancel_event and cancel_event.is_set():
-                    cancelled_by_event[0] = True
-                    return  # Just return; we'll check the flag after download
+                    raise PauseRequested()
                 
                 now = time.time()
                 elapsed = now - start_time[0]
-                speed_str = "0 KB/s"
-                
-                # Update speed every 0.1s to avoid jitter, and to allow for smoother throttling
                 if elapsed >= 0.1:
                     bytes_diff = current - last_bytes[0]
                     speed_kb_s = (bytes_diff / elapsed) / 1024
                     
-                    # Throttling Logic
                     if max_speed_kb and speed_kb_s > max_speed_kb:
-                        # compute how much time it *should* have taken
                         expected_time = (bytes_diff / 1024) / max_speed_kb
                         sleep_time = expected_time - elapsed
                         if sleep_time > 0:
                             await asyncio.sleep(sleep_time)
-                            now = time.time() # update now after sleeping
+                            now = time.time()
                             elapsed = now - start_time[0]
                             speed_kb_s = (bytes_diff / elapsed) / 1024
 
-                    if speed_kb_s > 1024:
-                        speed_str = f"{(speed_kb_s/1024):.1f} MB/s"
-                    else:
-                        speed_str = f"{sys.maxsize if speed_kb_s < 0 else int(speed_kb_s)} KB/s" if speed_kb_s < 0 else f"{int(speed_kb_s)} KB/s"
-                    
+                    speed_str = f"{(speed_kb_s/1024):.1f} MB/s" if speed_kb_s > 1024 else f"{int(speed_kb_s)} KB/s"
                     start_time[0] = now
                     last_bytes[0] = current
-
                     if progress_cb:
-                        # telethon total could be None
                         progress_cb(message.id, current, total or file_size, speed_str=speed_str)
 
-            dir_path = os.path.join(folder_name, "")  # trailing slash = directory mode
+            dir_path = os.path.join(folder_name, "")
             file_path = None
             try:
                 file_path = await message.download_media(
                     file=dir_path,
                     progress_callback=internal_progress,
                 )
+            except PauseRequested:
+                if complete_cb: complete_cb(message.id, paused=True, filepath=None)
+                return
             except AttributeError as attr_err:
-                # Telethon 1.38.x bug: 'PhotoSize' object has no attribute 'location'
-                # Happens with newer Telegram API photo size objects.
-                # Workaround: find the largest PhotoSize that has actual bytes and
-                # download via client.download_file() using InputPhotoFileLocation.
                 if "location" in str(attr_err) and getattr(message, 'photo', None):
-                    from telethon.tl.types import InputPhotoFileLocation, PhotoSize, PhotoCachedSize
+                    # Fallback for Telethon 1.38.x PhotoSize bug
+                    from telethon.tl.types import InputPhotoFileLocation
                     photo = message.photo
+                    # Pick largest size that isn't empty
                     best_size = None
-                    for sz in reversed(photo.sizes):
-                        if isinstance(sz, (PhotoSize, PhotoCachedSize)) and hasattr(sz, 'type'):
-                            best_size = sz
-                            break
+                    if photo.sizes:
+                        # Just grab the last one that has a type
+                        for sz in reversed(photo.sizes):
+                            if hasattr(sz, 'type'):
+                                best_size = sz
+                                break
+                    
                     if best_size:
                         loc = InputPhotoFileLocation(
                             id=photo.id,
@@ -229,48 +220,38 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                         )
                         fname = f"Photo_{message.id}.jpg"
                         file_path = os.path.join(folder_name, fname)
-                        await client.download_file(
-                            loc,
-                            file=file_path,
-                            progress_callback=internal_progress,
-                        )
-                    else:
-                        raise  # No valid size found, propagate original error
-                else:
-                    raise  # Not a PhotoSize issue, propagate
+                        try:
+                            await client.download_file(
+                                loc,
+                                file=file_path,
+                                progress_callback=internal_progress,
+                            )
+                        except PauseRequested:
+                            if complete_cb: complete_cb(message.id, paused=True, filepath=None)
+                            return
+                    else: raise
+                else: raise
 
-            # Check if a pause was requested mid-download via flag
-            if cancelled_by_event[0]:
-                if complete_cb:
-                    complete_cb(message.id, paused=True, filepath=None)
-                break
             if complete_cb:
                 complete_cb(message.id, filepath=file_path)
             break
 
         except asyncio.CancelledError:
-            # Genuine external coroutine cancellation (task.cancel() from outside)
-            if complete_cb:
-                complete_cb(message.id, paused=True, filepath=None)
+            if complete_cb: complete_cb(message.id, paused=True, filepath=None)
             break
         except Exception as e:
-            err_str = str(e)
             if attempt < max_retries - 1:
                 wait_time = getattr(e, 'seconds', 2)
                 print(f"Error downloading {message.id}, retrying in {wait_time}s ({attempt+1}/{max_retries}): {e}")
                 await asyncio.sleep(wait_time)
-                # Manually refresh the message to bypass FileReferenceExpiredError for invite-link channels
                 if client and channel:
                     try:
                         refreshed = await client.get_messages(channel, ids=message.id)
-                        if refreshed:
-                            message = refreshed
-                    except Exception as refresh_e:
-                        print(f"Message refresh failed: {refresh_e}")
+                        if refreshed: message = refreshed
+                    except: pass
             else:
                 print(f"Error downloading message {message.id} after {max_retries} attempts: {e}")
-                if complete_cb:
-                    complete_cb(message.id, paused=False)  # Marked as complete to not block pipeline
+                if complete_cb: complete_cb(message.id, paused=False)
 
 async def download_in_batches_headless(client, channel, messages, folder_name, batch_size, downloaded_state, progress_cb, complete_cb, task_cancel_event=None, max_speed_kb=None):
     semaphore = asyncio.Semaphore(batch_size)
