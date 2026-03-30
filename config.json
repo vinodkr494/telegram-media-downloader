@@ -2,6 +2,7 @@
     "download_path": "downloads",
     "download_limit": 1,
     "max_speed_kb": 0,
+    "dark_mode": false,
     "proxy": {
         "enabled": false,
         "type": "SOCKS5",

@@ -46,6 +46,7 @@ class TelegramWorker(QThread):
         self.downloaded_state = load_download_state()
         
         self.task_cancel_events = {}
+        self.running_tasks = {} # task_id -> future or task
 
     def run(self):
         """Thread entry point. Starts the asyncio event loop."""
@@ -209,8 +210,10 @@ class TelegramWorker(QThread):
         """Called from Main UI Thread. Schedules download in asyncio loop."""
         tasks = load_active_tasks()
         found = False
+        ch_clean = str(channel_input).replace("-100", "", 1)
         for t in tasks:
-            if str(t.get("channel_input")) == str(channel_input) and t.get("media_id") == media_id:
+            tk_chan = str(t.get("channel_input")).replace("-100", "", 1)
+            if tk_chan == ch_clean and t.get("media_id") == media_id:
                 t["paused"] = is_paused
                 t["download_path"] = download_path
                 t["download_limit"] = download_limit
@@ -248,11 +251,11 @@ class TelegramWorker(QThread):
         try:
             channel_input, media_id_str = task_id.rsplit('_', 1)
             media_id = int(media_id_str)
+            ch_clean = channel_input.replace("-100", "", 1)
             tasks = load_active_tasks()
             for t in tasks:
-                # Find task by numeric ID OR original input
-                tk_chan = str(t.get("channel_input"))
-                if tk_chan.replace("-100", "") == channel_input.replace("-100", "") and t.get("media_id") == media_id:
+                tk_chan = str(t.get("channel_input")).replace("-100", "", 1)
+                if tk_chan == ch_clean and t.get("media_id") == media_id:
                     t["paused"] = True
                     break
             save_active_tasks(tasks)
@@ -271,12 +274,12 @@ class TelegramWorker(QThread):
         try:
             channel_input, media_id_str = task_id.rsplit('_', 1)
             media_id = int(media_id_str)
+            ch_clean = channel_input.replace("-100", "", 1)
             tasks = load_active_tasks()
-            # More robust matching for deletion
             new_tasks = []
             for t in tasks:
-                tk_chan = str(t.get("channel_input"))
-                if tk_chan.replace("-100", "") == channel_input.replace("-100", "") and t.get("media_id") == media_id:
+                tk_chan = str(t.get("channel_input")).replace("-100", "", 1)
+                if tk_chan == ch_clean and t.get("media_id") == media_id:
                     continue
                 new_tasks.append(t)
             save_active_tasks(new_tasks)
@@ -297,12 +300,20 @@ class TelegramWorker(QThread):
                 updated_tasks = []
                 found_and_updated = False
                 
+                # Check for existing background task with this task_id
+                if task_id in self.running_tasks and not is_paused:
+                    # If it's already running, don't start a duplicate.
+                    # Just update parameters if needed? (Coro usually reads once though)
+                    print(f"Task {task_id} is already running. Skipping duplicate task start.")
+                    return
+
+                ch_resolved_clean = resolved_chan_id.replace("-100", "", 1)
                 for tk in tasks:
                     match = False
-                    tk_chan = str(tk.get("channel_input"))
+                    tk_chan = str(tk.get("channel_input")).replace("-100", "", 1)
                     # If this is the task we just resolved (either by input string or numeric ID)
                     if tk.get("media_id") == media_id:
-                        if tk_chan == str(channel_input) or tk_chan.replace("-100", "") == resolved_chan_id.replace("-100", ""):
+                        if tk_chan == str(channel_input).replace("-100", "", 1) or tk_chan == ch_resolved_clean:
                             match = True
                     
                     if match and not found_and_updated:
@@ -425,15 +436,24 @@ class TelegramWorker(QThread):
                 "files_metadata": files_metadata
             }, total_items)
             
-            global_cancel_event = asyncio.Event()
+            if task_id in self.task_cancel_events:
+                global_cancel_event = self.task_cancel_events[task_id]
+            else:
+                global_cancel_event = asyncio.Event()
+                self.task_cancel_events[task_id] = global_cancel_event
+            
             global_cancel_event.clear()
-            self.task_cancel_events[task_id] = global_cancel_event
+            
             if is_paused:
                 global_cancel_event.set()
+                return
 
-            if not messages_to_download or is_paused:
-                if not messages_to_download:
-                    self.signals.download_completed.emit(task_id, folder_name)
+            # Mark as running
+            self.running_tasks[task_id] = asyncio.current_task()
+
+            if not messages_to_download:
+                self.signals.download_completed.emit(task_id, folder_name)
+                if task_id in self.running_tasks: del self.running_tasks[task_id]
                 return
 
             completed_count = [completed_initial]
@@ -469,6 +489,9 @@ class TelegramWorker(QThread):
                 task_cancel_event=global_cancel_event,
                 max_speed_kb=max_speed_kb if max_speed_kb > 0 else None
             )
+            
+            if task_id in self.running_tasks:
+                del self.running_tasks[task_id]
 
         except Exception as e:
             self.signals.error_occurred.emit(channel_input, str(e))

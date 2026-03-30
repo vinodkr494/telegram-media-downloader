@@ -174,11 +174,23 @@ class DownloadCard(QWidget):
 
         outer.addWidget(self.expand_area)
 
-        # apply paused state
+        # apply initial state visually
         if self.is_paused:
-            self.is_paused = False
-            self.toggle_pause()
-            self.batch_progress_bar.setValue(self.completed)
+            self.btn_pause.setText("▶ Resume")
+            self.lbl_status_text.setText("Paused")
+            self.lbl_status_text.setProperty("state", "paused")
+            self.batch_progress_bar.setProperty("state", "paused")
+        else:
+            self.btn_pause.setText("⏸ Pause")
+            self.lbl_status_text.setText("Downloading…")
+            self.lbl_status_text.setProperty("state", "active")
+            self.batch_progress_bar.setProperty("state", "active")
+
+        # Initial style application
+        self.lbl_status_text.style().unpolish(self.lbl_status_text)
+        self.lbl_status_text.style().polish(self.lbl_status_text)
+        self.batch_progress_bar.style().unpolish(self.batch_progress_bar)
+        self.batch_progress_bar.style().polish(self.batch_progress_bar)
 
     # ──────────────────────────────────────────────────────────────────────────
     # Slots

@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
         self.sidebarWidget.setObjectName("Sidebar")
         self.sidebarWidget.setFixedWidth(85)
         sidebar_layout = QVBoxLayout(self.sidebarWidget)
-        sidebar_layout.setContentsMargins(5, 20, 5, 20)
+        sidebar_layout.setContentsMargins(2, 20, 2, 20)
         sidebar_layout.setSpacing(10)
         
         # Window Icon
@@ -84,7 +84,7 @@ class MainWindow(QMainWindow):
             btn.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
             btn.setCheckable(True)
             btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn.setMinimumHeight(65)
+            btn.setMinimumHeight(60)
             btn.setCursor(Qt.PointingHandCursor)
             return btn
 

@@ -7,21 +7,16 @@ Telegram Bulk Media Downloader is a Python-based desktop app that lets you brows
 
 ---
 
-## ✨ What's New in v2.4.4 (Bug Fixes & Cross-Platform Improvements)
+## ✨ What's New in v2.4.5 (Pause Reliability & UI Fine-Tuning)
 
-### 🔗 Invite-Link Download Fix
-Downloading media from **private channels joined via an invite link** now works correctly. Previously, the folder was created but no files were downloaded due to a `FileReferenceExpiredError` — Telethon's internal cache couldn't locate the channel by numeric ID after an invite-link join. The downloader now manually refreshes the message entity using the fully-resolved channel object on every retry, bypassing the cache issue entirely.
+### ⏯️ Robust Pause / Resume
+Fixed a task-tracking bug where clicking "Resume" would spawn multiple background threads, making the "Pause" button appear unresponsive. The app now strictly ensures only one background task exists per channel and properly synchronizes the pause/resume state across restarts.
 
-### 🌓 Cross-Platform Dark Mode Detection
-The app now **auto-detects the OS dark mode preference** at startup:
-- **Windows** — reads `AppsUseLightTheme` from the Windows registry
-- **macOS** — queries `AppleInterfaceStyle` via `defaults read`
-- **Linux** — checks GTK theme via `gsettings` or the `$GTK_THEME` env var
+### 📐 Sidebar UI Polish
+Refined the sidebar button margins and layout padding. "Light Mode" and "Dark Mode" text labels now fit perfectly in the compact 85px sidebar without being cut off.
 
-Your manually chosen theme is still saved to `config.json` and takes priority over the system setting.
-
-### 🎨 Correct Startup Theme (No More Black Flash)
-Fixed a bug where launching the exe on Windows Dark Mode would show a black/unstyled window on startup before the light theme loaded. The app now loads the correct theme immediately, and the sidebar toggle button syncs to match.
+### 🔗 Invite-Link Download Fix (v2.4.4)
+Downloading media from **private channels joined via an invite link** now works correctly. The downloader now manually refreshes the message entity on every retry, bypassing Telethon's `FileReferenceExpiredError`.
 
 ---
 
@@ -143,8 +138,13 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 
 ## Changelog
 
+### v2.4.5
+- ⏯️ **Pause Reliability** — implemented active task tracking to prevent duplicate background threads; clicking "Pause" now reliably stops all activity for that task immediately
+- 📐 **Sidebar Polish** — reduced layout margins and button margins to ensure "Light Mode" and "Dark Mode" labels fit within the 85px sidebar on all displays
+- 💾 **Persistent Resume** — fixed a state-management bug that caused paused tasks to auto-resume unexpectedly after a restart
+
 ### v2.4.4
-- 🔗 **Invite-Link Download Fix** — media from private channels fetched via invite links now downloads correctly; fixed `FileReferenceExpiredError` by manually refreshing the message entity using the resolved channel object on retry
+- 🔗 **Invite-Link Download Fix** — fixed `FileReferenceExpiredError` for private channels joined via invite links by manually refreshing the message entity on retry
 - 🌓 **Cross-Platform Dark Mode Detection** — app now auto-detects OS dark mode at startup (Windows registry, macOS `defaults`, Linux `gsettings`/`$GTK_THEME`)
 - 🎨 **Startup Theme Fix** — eliminated black flash on Windows Dark Mode; sidebar toggle button now syncs to the detected theme on launch
 - 💾 **Theme Persistence** — user's chosen theme is saved to `config.json` and restored on next launch, overriding the system default
