@@ -200,11 +200,45 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                         # telethon total could be None
                         progress_cb(message.id, current, total or file_size, speed_str=speed_str)
 
-            dir_path = os.path.join(folder_name, "") # Enforce trailing slash for Telethon directory matching
-            file_path = await message.download_media(
-                file=dir_path,
-                progress_callback=internal_progress,
-            )
+            dir_path = os.path.join(folder_name, "")  # trailing slash = directory mode
+            file_path = None
+            try:
+                file_path = await message.download_media(
+                    file=dir_path,
+                    progress_callback=internal_progress,
+                )
+            except AttributeError as attr_err:
+                # Telethon 1.38.x bug: 'PhotoSize' object has no attribute 'location'
+                # Happens with newer Telegram API photo size objects.
+                # Workaround: find the largest PhotoSize that has actual bytes and
+                # download via client.download_file() using InputPhotoFileLocation.
+                if "location" in str(attr_err) and getattr(message, 'photo', None):
+                    from telethon.tl.types import InputPhotoFileLocation, PhotoSize, PhotoCachedSize
+                    photo = message.photo
+                    best_size = None
+                    for sz in reversed(photo.sizes):
+                        if isinstance(sz, (PhotoSize, PhotoCachedSize)) and hasattr(sz, 'type'):
+                            best_size = sz
+                            break
+                    if best_size:
+                        loc = InputPhotoFileLocation(
+                            id=photo.id,
+                            access_hash=photo.access_hash,
+                            file_reference=photo.file_reference,
+                            thumb_size=best_size.type
+                        )
+                        fname = f"Photo_{message.id}.jpg"
+                        file_path = os.path.join(folder_name, fname)
+                        await client.download_file(
+                            loc,
+                            file=file_path,
+                            progress_callback=internal_progress,
+                        )
+                    else:
+                        raise  # No valid size found, propagate original error
+                else:
+                    raise  # Not a PhotoSize issue, propagate
+
             # Check if a pause was requested mid-download via flag
             if cancelled_by_event[0]:
                 if complete_cb:
@@ -213,13 +247,14 @@ async def download_single_file(client, channel, message, folder_name, progress_c
             if complete_cb:
                 complete_cb(message.id, filepath=file_path)
             break
-                
+
         except asyncio.CancelledError:
             # Genuine external coroutine cancellation (task.cancel() from outside)
             if complete_cb:
                 complete_cb(message.id, paused=True, filepath=None)
             break
         except Exception as e:
+            err_str = str(e)
             if attempt < max_retries - 1:
                 wait_time = getattr(e, 'seconds', 2)
                 print(f"Error downloading {message.id}, retrying in {wait_time}s ({attempt+1}/{max_retries}): {e}")
@@ -235,7 +270,7 @@ async def download_single_file(client, channel, message, folder_name, progress_c
             else:
                 print(f"Error downloading message {message.id} after {max_retries} attempts: {e}")
                 if complete_cb:
-                    complete_cb(message.id, paused=False) # Marked as complete to not block pipeline
+                    complete_cb(message.id, paused=False)  # Marked as complete to not block pipeline
 
 async def download_in_batches_headless(client, channel, messages, folder_name, batch_size, downloaded_state, progress_cb, complete_cb, task_cancel_event=None, max_speed_kb=None):
     semaphore = asyncio.Semaphore(batch_size)
