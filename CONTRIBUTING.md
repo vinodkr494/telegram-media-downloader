@@ -63,19 +63,28 @@ python src/gui.py
 ```
 telegram-media-downloader/
 ├── src/
-│   ├── gui.py              # Main application window and all UI
+│   ├── gui.py              # Entry point for the executable
 │   ├── core_downloader.py  # Download logic, Telethon wrappers, batching
-│   └── assets/             # Icons, logo
+│   ├── resource_utils.py   # Absolute path resolver for assets (bundling)
+│   ├── ui/                 # All PySide6 UI code
+│   │   ├── app.py          # App initialization and theme applicator
+│   │   ├── main_window.py  # Central navigation and main layout
+│   │   ├── components/     # Reusable UI elements (cards, task tracking)
+│   │   └── views/          # Screen-level widgets (Login, Downloads, Settings)
+│   ├── workers/            # Multi-threading controllers
+│   │   └── telegram_worker.py # QThread managing the async loop and Telethon
+│   └── assets/             # QSS styles, icons, logos
 ├── requirements.txt
 ├── .env                    # API credentials (gitignored)
 ├── README.md
 └── CONTRIBUTING.md
 ```
 
-| File | Purpose |
-|------|---------|
-| `gui.py` | All CustomTkinter UI, navigation, modals, and task management |
-| `core_downloader.py` | All async Telethon logic: fetch channel, get messages, batch download |
+| File / Dir | Purpose |
+|------------|---------|
+| `src/ui/` | All PySide6 UI: navigation, views, custom components, and themes |
+| `src/workers/` | All threading logic: `TelegramWorker` runs Telethon in a dedicated background loop |
+| `core_downloader.py` | Core async Telethon logic for fetching and downloading from Telegram |
 
 ---
 
@@ -137,11 +146,11 @@ Before opening a PR, make sure:
 
 ### Threading Model
 
-The app runs two execution contexts:
-- **Tkinter main thread** — all UI updates (`self.after(0, ...)` for thread-safe callbacks)
-- **Background asyncio loop** — all Telethon network calls (`asyncio.run_coroutine_threadsafe(...)`)
+The app uses a dual-threaded model to keep the interface responsive:
+- **PySide6 Main Thread** — Handles all UI event loops and visual updates.
+- **`TelegramWorker` (QThread)** — Owns a dedicated `asyncio` event loop where all Telethon network operations take place.
 
-> ⚠️ Never call Telethon methods directly from the Tkinter thread. Always use `asyncio.run_coroutine_threadsafe(coro, self.loop)`.
+> ⚠️ **Thread Safety**: Never call Telethon methods from the UI thread. Use signals and slots to communicate between the `TelegramWorker` and the UI.
 
 ### Download Pipeline
 

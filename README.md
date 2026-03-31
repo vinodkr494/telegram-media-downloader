@@ -3,7 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/vinodkr494/telegram-media-downloader?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases/latest)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/vinodkr494/telegram-media-downloader/total?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases)
 
-Telegram Bulk Media Downloader is a Python-based desktop app that lets you browse, filter, and bulk-download media from any Telegram channel or group — with a **completely rebuilt PySide6 UI**, modular architecture, and enhanced background threading for 24/7 reliability.
+🚀 **Bulk-download videos, images, PDFs, audio & more** from any Telegram channel or group. Features a **Modern PySide6 GUI**, category browser, real-time search, parallel downloads, smart deduplication, speed limiter, proxy support, dark/light theme, and persistent queue — cross-platform.
 
 ---
 
