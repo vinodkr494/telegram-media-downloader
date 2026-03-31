@@ -53,6 +53,9 @@ def is_system_dark_mode() -> bool:
         return "dark" in gtk_theme
 
 
+from resource_utils import get_resource_path
+
+
 def apply_theme(is_dark=False):
     global _app_instance
     if not _app_instance:
@@ -68,7 +71,7 @@ def apply_theme(is_dark=False):
         pass
 
     filename = "dark_style.qss" if is_dark else "style.qss"
-    qss_path = os.path.join(os.path.dirname(__file__), filename)
+    qss_path = get_resource_path(os.path.join("assets", "styles", filename))
     if os.path.exists(qss_path):
         with open(qss_path, "r", encoding="utf-8") as f:
             _app_instance.setStyleSheet(f.read())
@@ -78,9 +81,8 @@ def launch_app(telegram_worker, version="unknown"):
     global _app_instance
     _app_instance = QApplication(sys.argv)
 
-    # Global Icon Setup
     from PySide6.QtGui import QIcon
-    icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "logo.ico")
+    icon_path = get_resource_path(os.path.join("assets", "logo.ico"))
     if os.path.exists(icon_path):
         _app_instance.setWindowIcon(QIcon(icon_path))
 
@@ -108,7 +110,7 @@ def launch_app(telegram_worker, version="unknown"):
     if startup_dark:
         window.btn_theme.setText("Light Mode")
         from PySide6.QtGui import QIcon as _QIcon
-        icon_p = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "icons", "light-mode.png"))
+        icon_p = get_resource_path(os.path.join("assets", "icons", "light-mode.png"))
         if os.path.exists(icon_p):
             window.btn_theme.setIcon(_QIcon(icon_p))
 

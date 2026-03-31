@@ -14,6 +14,7 @@ from ui.views.settings_view import SettingsView
 from ui.views.downloads_view import DownloadsView
 from ui.views.login_view import LoginView
 from PySide6.QtGui import QCloseEvent
+from resource_utils import get_resource_path
 
 class MainWindow(QMainWindow):
     def __init__(self, telegram_worker, version="unknown"):
@@ -53,7 +54,7 @@ class MainWindow(QMainWindow):
         sidebar_layout.setSpacing(10)
         
         # Window Icon
-        icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "logo.ico"))
+        icon_path = get_resource_path(os.path.join("assets", "logo.ico"))
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
@@ -64,7 +65,7 @@ class MainWindow(QMainWindow):
         logo_layout.setSpacing(5)
         
         self.lbl_logo_img = QLabel()
-        logo_png_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "logo.png"))
+        logo_png_path = get_resource_path(os.path.join("assets", "logo.png"))
         if os.path.exists(logo_png_path):
             pixmap = QPixmap(logo_png_path).scaled(48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.lbl_logo_img.setPixmap(pixmap)
@@ -77,7 +78,7 @@ class MainWindow(QMainWindow):
         def create_nav_btn(text, icon_name):
             btn = QToolButton()
             btn.setText(text)
-            icon_p = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "icons", icon_name))
+            icon_p = get_resource_path(os.path.join("assets", "icons", icon_name))
             if os.path.exists(icon_p):
                 btn.setIcon(QIcon(icon_p))
                 btn.setIconSize(QSize(24, 24))
@@ -289,7 +290,7 @@ class MainWindow(QMainWindow):
             self.btn_theme.setText("Dark Mode")
             icon_name = "dark-mode.png"
             
-        icon_p = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "icons", icon_name))
+        icon_p = get_resource_path(os.path.join("assets", "icons", icon_name))
         if os.path.exists(icon_p):
             self.btn_theme.setIcon(QIcon(icon_p))
             

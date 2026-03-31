@@ -7,13 +7,13 @@ Telegram Bulk Media Downloader is a Python-based desktop app that lets you brows
 
 ---
 
-## ✨ What's New in v2.4.5 (Pause Reliability & UI Fine-Tuning)
+## ✨ What's New in v2.4.6 (GitHub Build Fix & Assets Refactor)
 
-### ⏯️ Robust Pause / Resume
-Fixed a task-tracking bug where clicking "Resume" would spawn multiple background threads, making the "Pause" button appear unresponsive. The app now strictly ensures only one background task exists per channel and properly synchronizes the pause/resume state across restarts.
+### 🌓 Theme & Build Fix
+Resolved an issue where "Dark Mode" and "Light Mode" styles were missing in the GitHub Actions build (.exe). All style files have been moved to the `assets/` directory for stable recursive bundling.
 
-### 📐 Sidebar UI Polish
-Refined the sidebar button margins and layout padding. "Light Mode" and "Dark Mode" text labels now fit perfectly in the compact 85px sidebar without being cut off.
+### 🛡️ Robust Resource Resolver
+Implemented a new `resource_utils.py` logic to handle PyInstaller's `sys._MEIPASS` path consistently across all UI components (Sidebar, Icons, Logos, and Styles).
 
 ### 🔗 Invite-Link Download Fix (v2.4.4)
 Downloading media from **private channels joined via an invite link** now works correctly. The downloader now manually refreshes the message entity on every retry, bypassing Telethon's `FileReferenceExpiredError`.
@@ -136,7 +136,31 @@ Go to **Settings → Max Download Speed** and drag the slider to your preferred 
 | Audio | `.mp3`, `.ogg`, `.flac`, and more |
 | GIFs | Telegram animated GIFs |
 
+## 🗺️ Roadmap (Coming in v3.0.0)
+
+### 📱 Remote Bot Control (Featured)
+Control your PC downloader from anywhere!
+- **Personal Bot Integration**: Register your own Telegram Bot token in the settings.
+- **Forward-to-Download**: Simply forward a channel post or send an invite link to your bot.
+- **Instant Activation**: The PC app will automatically detect the command and start the download queue immediately.
+- **Status Updates**: Your bot will message you back when a download is finished or if it runs into an error.
+
+### 📅 Advanced Scheduler
+- Set "Quiet Hours" for downloading.
+- Plan your queue for off-peak internet hours.
+
+### 🔍 Search & Filtering
+- Filter media by file size, date range, or message text before batch downloading.
+
+---
+
 ## Changelog
+
+### v2.4.6
+- 🌓 **Build Fix** — moved QSS files to `assets/styles/` for guaranteed recursive bundling in GitHub Actions CI
+- 🛡️ **Robust Pathing** — added `resource_utils.py` to handle both local development and PyInstaller extraction paths (`sys._MEIPASS`)
+- 🎨 **UI Component Sync** — updated `MainWindow`, `MediaBrowser`, and `App` to use the new centralized path resolver
+- 🗺️ **Roadmap v3.0** — defined the upcoming phases for multi-segment speed and remote bot control
 
 ### v2.4.5
 - ⏯️ **Pause Reliability** — implemented active task tracking to prevent duplicate background threads; clicking "Pause" now reliably stops all activity for that task immediately

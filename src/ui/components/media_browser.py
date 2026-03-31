@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon
+from resource_utils import get_resource_path
 
 class SelectableMediaRow(QWidget):
     stateChanged = Signal(bool)
@@ -95,7 +96,7 @@ class MediaBrowserDialog(QDialog):
     def __init__(self, channel_title, messages_dict, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"Media Browser - {channel_title}")
-        icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "logo.ico"))
+        icon_path = get_resource_path(os.path.join("assets", "logo.ico"))
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
             
