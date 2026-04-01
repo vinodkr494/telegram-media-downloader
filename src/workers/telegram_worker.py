@@ -13,7 +13,8 @@ from core_downloader import (
     get_messages_by_type,
     download_in_batches_headless,
     load_active_tasks,
-    save_active_tasks
+    save_active_tasks,
+    get_project_root
 )
 
 class WorkerSignals(QObject):
@@ -54,7 +55,8 @@ class TelegramWorker(QThread):
         asyncio.set_event_loop(self.loop)
         
         try:
-            self.client = TelegramClient(self.session_name, self.api_id, self.api_hash, loop=self.loop)
+            session_full_path = os.path.join(get_project_root(), self.session_name)
+            self.client = TelegramClient(session_full_path, self.api_id, self.api_hash, loop=self.loop)
             self.loop.run_until_complete(self.check_auth())
         except ValueError:
             # API ID / Hash missing or invalid
@@ -70,7 +72,8 @@ class TelegramWorker(QThread):
         async def _reinit():
             if self.client:
                 await self.client.disconnect()
-            self.client = TelegramClient(self.session_name, self.api_id, self.api_hash, loop=self.loop)
+            session_full_path = os.path.join(get_project_root(), self.session_name)
+            self.client = TelegramClient(session_full_path, self.api_id, self.api_hash, loop=self.loop)
             await self.check_auth()
             
         if self.loop:
@@ -132,7 +135,8 @@ class TelegramWorker(QThread):
                 if self.client:
                     await self.client.disconnect()
                 
-                self.client = TelegramClient(self.session_name, self.api_id, self.api_hash, loop=self.loop)
+                session_full_path = os.path.join(get_project_root(), self.session_name)
+                self.client = TelegramClient(session_full_path, self.api_id, self.api_hash, loop=self.loop)
                 await self.client.connect()
                 
                 if not await self.client.is_user_authorized():

@@ -11,3 +11,13 @@ def get_resource_path(relative_path: str) -> str:
     # Assume this file is in 'src/resource_utils.py'
     base_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_dir, relative_path)
+
+def get_project_root() -> str:
+    """Get the persistent project root where .env, config.json, and session files should be stored."""
+    if getattr(sys, 'frozen', False):
+        # Running as .exe
+        return os.path.dirname(sys.executable)
+    
+    # Development: Root is one level above 'src/'
+    # Assuming this file is in 'src/resource_utils.py'
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

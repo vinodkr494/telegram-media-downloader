@@ -6,8 +6,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 import json
 import os
+from resource_utils import get_project_root
 
-CONFIG_FILE = "config.json"
+CONFIG_FILE = os.path.join(get_project_root(), "config.json")
 
 def load_config():
     default_config = {

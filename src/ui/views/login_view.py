@@ -165,10 +165,26 @@ class LoginView(QWidget):
     # ── helpers ────────────────────────────────────────────────────────────
 
     def load_env_defaults(self):
+        # We handle this manually now to ensure we get the root .env
+        from dotenv import load_dotenv
+        from resource_utils import get_project_root
+        env_path = os.path.join(get_project_root(), '.env')
+        load_dotenv(env_path)
+
         api_id   = os.getenv('API_ID')
         api_hash = os.getenv('API_HASH')
-        if api_id:   self.inp_api_id.setText(api_id)
-        if api_hash: self.inp_api_hash.setText(api_hash)
+        phone    = os.getenv('PHONE')
+        
+        # Strip quotes if they exist (sometimes users add them)
+        if api_id:
+            api_id = str(api_id).strip("'").strip('"')
+            self.inp_api_id.setText(api_id)
+        if api_hash:
+            api_hash = str(api_hash).strip("'").strip('"')
+            self.inp_api_hash.setText(api_hash)
+        if phone:
+            phone = str(phone).strip("'").strip('"')
+            self.inp_phone.setText(phone)
 
     def on_send_code(self):
         api_id   = self.inp_api_id.text().strip()
@@ -176,13 +192,35 @@ class LoginView(QWidget):
         phone    = self.inp_phone.text().strip()
         if not api_id or not api_hash or not phone:
             return
-        env_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env')
+        # Find project root
+        from resource_utils import get_project_root
+        env_path = os.path.join(get_project_root(), '.env')
+        
         try:
+            # We preserve existing .env content but update our specific keys
+            lines = []
+            if os.path.exists(env_path):
+                with open(env_path, "r") as f:
+                    lines = f.readlines()
+            
+            # Create a dictionary of current values
+            env_data = {}
+            for line in lines:
+                if "=" in line:
+                    k, v = line.strip().split("=", 1)
+                    env_data[k.strip()] = v.strip()
+            
+            # Update with new values (no quotes)
+            env_data["API_ID"] = api_id
+            env_data["API_HASH"] = api_hash
+            env_data["PHONE"] = phone
+            
+            # Write back
             with open(env_path, "w") as f:
-                f.write(f"API_ID={api_id}\nAPI_HASH={api_hash}\n")
-        except Exception:
-            pass
+                for k, v in env_data.items():
+                    f.write(f"{k}={v}\n")
+        except Exception as e:
+            print(f"Error saving .env: {e}")
         self.btn_send_code.setEnabled(False)
         self.btn_send_code.setText("Connecting…")
         self.login_started.emit(api_id, api_hash, phone)

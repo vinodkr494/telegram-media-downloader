@@ -1,7 +1,7 @@
 import os
 import sys
 
-APP_VERSION = "2.4.6"
+APP_VERSION = "2.4.7"
 
 # We add src to path so absolute imports within src work cleanly
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -20,12 +20,16 @@ def main():
     except Exception:
         pass
 
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    from resource_utils import get_project_root
+    env_path = os.path.join(get_project_root(), '.env')
     load_dotenv(dotenv_path=env_path)
     
     api_id_str = os.getenv('API_ID')
+    if api_id_str:
+        api_id_str = str(api_id_str).strip("'").strip('"')
+    
     api_id = int(api_id_str) if api_id_str and api_id_str.isdigit() else 0
-    api_hash = os.getenv('API_HASH') or ""
+    api_hash = (os.getenv('API_HASH') or "").strip("'").strip('"')
 
     # 1. Initialize our background Telegram Worker (API keys can be supplied later via GUI)
     worker = TelegramWorker(

@@ -7,7 +7,15 @@
 
 ---
 
-## ✨ What's New in v2.4.6 (GitHub Build Fix & Assets Refactor)
+## ✨ What's New in v2.4.7 (Persistence & EXE Build Fix)
+
+### 💾 Robust Persistence
+All persistent files (`.env`, `config.json`, `download_state.json`, `active_tasks.json`, and `.session` files) are now stored in a stable location. When running as an `.exe`, these files stay next to the executable instead of being lost in temporary extraction folders.
+
+### 🌓 Smart .env Handling
+The app now handles quoted API IDs and API Hashes in the `.env` file automatically. Your phone number is also persisted so you don't have to re-enter it on every launch.
+
+## ✨ What's New in v2.4.6
 
 ### 🌓 Theme & Build Fix
 Resolved an issue where "Dark Mode" and "Light Mode" styles were missing in the GitHub Actions build (.exe). All style files have been moved to the `assets/` directory for stable recursive bundling.
@@ -156,11 +164,12 @@ Control your PC downloader from anywhere!
 
 ## Changelog
 
+### v2.4.7
+- 💾 **Robust Persistence** — centralized all persistent files (`.env`, `config.json`, `download_state.json`, `active_tasks.json`, and `.session`) to the project root or the EXE's directory, fixing "forgotten settings" issue in standalone builds.
+- 🌓 **Improved .env Logic** — added automatic quote stripping for `API_ID` and `API_HASH` and ensured `PHONE` is persisted for a seamless login experience.
+- 🛡️ **Path Resolver Sync** — updated all UI components (MainWindow, SettingsView, LoginView) and background workers to use the new centralized `get_project_root` helper.
+
 ### v2.4.6
-- 🌓 **Build Fix** — moved QSS files to `assets/styles/` for guaranteed recursive bundling in GitHub Actions CI
-- 🛡️ **Robust Pathing** — added `resource_utils.py` to handle both local development and PyInstaller extraction paths (`sys._MEIPASS`)
-- 🎨 **UI Component Sync** — updated `MainWindow`, `MediaBrowser`, and `App` to use the new centralized path resolver
-- 🗺️ **Roadmap v3.0** — defined the upcoming phases for multi-segment speed and remote bot control
 
 ### v2.4.5
 - ⏯️ **Pause Reliability** — implemented active task tracking to prevent duplicate background threads; clicking "Pause" now reliably stops all activity for that task immediately

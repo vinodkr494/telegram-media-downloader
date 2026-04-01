@@ -14,9 +14,9 @@ from telethon.tl.types import (
     MessageMediaPhoto,
     MessageMediaDocument
 )
-
-STATE_FILE = "download_state.json"
-TASKS_FILE = "active_tasks.json"
+from resource_utils import get_project_root
+STATE_FILE = os.path.join(get_project_root(), "download_state.json")
+TASKS_FILE = os.path.join(get_project_root(), "active_tasks.json")
 
 def load_active_tasks():
     if os.path.exists(TASKS_FILE):
