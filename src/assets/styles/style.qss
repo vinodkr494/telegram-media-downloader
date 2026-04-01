@@ -30,7 +30,7 @@ QWidget#Sidebar QToolButton {
     border: none;
     text-align: center;
     padding: 8px 1px;
-    font-size: 11px;
+    font-size: 8.5pt;
     font-weight: 600;
     border-radius: 8px;
     margin: 4px 3px;
@@ -86,7 +86,7 @@ QLabel#ControlLabel {
 
 QLabel#MutedText {
     color: #64748B;
-    font-size: 11px;
+    font-size: 8.5pt;
 }
 
 QLabel#SectionHeader {
@@ -135,7 +135,7 @@ QLabel#CardTitle {
 
 QLabel#StatusBadge {
     font-weight: 700;
-    font-size: 11px;
+    font-size: 8.5pt;
     padding: 2px 8px;
     border-radius: 4px;
 }
@@ -157,7 +157,7 @@ QLabel#TypePill {
     color: #0284C7; /* Blue-600 */
     border-radius: 4px;
     padding: 3px 8px;
-    font-size: 11px;
+    font-size: 8.5pt;
     font-weight: 600;
 }
 
@@ -267,7 +267,7 @@ QProgressBar {
     border-radius: 5px;
     color: #475569; /* Dark gray for better contrast on light background */
     font-weight: bold;
-    font-size: 11px;
+    font-size: 8.5pt;
 }
 
 /* Dialogs & Tabs */
@@ -347,7 +347,7 @@ QLabel#MediaItemTitle {
     color: #1E293B;
 }
 QLabel#MediaItemMeta {
-    font-size: 11px;
+    font-size: 8.5pt;
     color: #64748B;
 }
 QLabel#SizeBadge {
@@ -355,7 +355,7 @@ QLabel#SizeBadge {
     color: #0284C7;
     border-radius: 4px;
     padding: 2px 8px;
-    font-size: 11px;
+    font-size: 8.5pt;
     font-weight: 700;
 }
 
@@ -437,4 +437,19 @@ QLineEdit, QSpinBox, QComboBox {
     border-radius: 6px;
     color: #0F172A;
     padding: 10px 14px;
+}
+
+/* Status Bar */
+QStatusBar {
+    background-color: #FFFFFF;
+    border-top: 1px solid #E2E8F0;
+    min-height: 28px;
+}
+QStatusBar::item {
+    border: none;
+}
+QStatusBar QLabel {
+    color: #64748B;
+    font-size: 8.5pt;
+    font-weight: 600;
 }

@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QPushButton, QCheckBox, QComboBox, 
     QFrame, QFileDialog, QSpinBox, QMessageBox
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 import json
 import os
 from resource_utils import get_project_root
@@ -42,6 +42,7 @@ def save_config(config_data):
         print(f"Error saving config: {e}")
 
 class SettingsView(QWidget):
+    logoutRequested = Signal()
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setup_ui()
@@ -71,10 +72,16 @@ class SettingsView(QWidget):
         self.input_path = QLineEdit("downloads")
         self.input_path.setReadOnly(True)
         self.btn_browse = QPushButton("Browse...")
-        self.btn_browse.setObjectName("PrimaryButton")
+        self.btn_browse.setObjectName("SecondaryButton")
         self.btn_browse.clicked.connect(self.browse_path)
+        
+        self.btn_open = QPushButton("📂 Open")
+        self.btn_open.setObjectName("PrimaryButton")
+        self.btn_open.clicked.connect(self.open_folder)
+        
         path_row.addWidget(self.input_path)
         path_row.addWidget(self.btn_browse)
+        path_row.addWidget(self.btn_open)
         
         clayout.addWidget(lbl_path)
         clayout.addLayout(path_row)
@@ -167,6 +174,17 @@ class SettingsView(QWidget):
         save_row.addWidget(self.btn_save)
         clayout.addLayout(save_row)
 
+        clayout.addWidget(QFrame(frameShape=QFrame.HLine, frameShadow=QFrame.Sunken))
+        
+        logout_row = QHBoxLayout()
+        self.btn_logout = QPushButton("🚪 Logout from Telegram")
+        self.btn_logout.setObjectName("LogoutBtn") # Assumed styled already
+        self.btn_logout.setCursor(Qt.PointingHandCursor)
+        self.btn_logout.clicked.connect(self.logout_clicked)
+        logout_row.addWidget(self.btn_logout)
+        logout_row.addStretch()
+        clayout.addLayout(logout_row)
+
         layout.addWidget(card)
         layout.addStretch()
         
@@ -208,3 +226,15 @@ class SettingsView(QWidget):
         folder = QFileDialog.getExistingDirectory(self, "Select Download Directory")
         if folder:
             self.input_path.setText(folder)
+
+    def open_folder(self):
+        path = self.input_path.text()
+        if os.path.exists(path):
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.abspath(path)))
+        else:
+            QMessageBox.warning(self, "Folder Not Found", f"The directory does not exist yet:\n{path}")
+
+    def logout_clicked(self):
+        self.logoutRequested.emit()

@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPushButton, QProgressBar, QSizePolicy, QFrame, QScrollArea
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal, QSize
 import os
 
 # Styles are now moved to dark_style.qss and style.qss
@@ -26,8 +26,20 @@ class DownloadCard(QWidget):
         self.file_rows     = {}
         self.is_expanded   = False
         self.is_paused     = is_paused
+        self.last_speed_val= 0 # KB/s
+        
         self.setup_ui(media_type)
         self.populate_files()
+        self.connect_buttons()
+
+    def connect_buttons(self):
+        self.btn_trash.clicked.connect(lambda: self.removeRequested.emit(self.task_id))
+        self.btn_up.clicked.connect(lambda: self.moveUpRequested.emit(self.task_id))
+        self.btn_down.clicked.connect(lambda: self.moveDownRequested.emit(self.task_id))
+
+    removeRequested = Signal(str)
+    moveUpRequested = Signal(str)
+    moveDownRequested = Signal(str)
 
     # ──────────────────────────────────────────────────────────────────────────
     # UI
@@ -200,7 +212,14 @@ class DownloadCard(QWidget):
         self.expand_area.setVisible(self.is_expanded)
         self.btn_expand.setText("▲ Files" if self.is_expanded else "▼ Files")
 
-    def refresh_from_metadata(self, title, total_items, completed, files_metadata):
+    def mouseDoubleClickEvent(self, event):
+        self.open_folder()
+        super().mouseDoubleClickEvent(event)
+
+    def refresh_from_metadata(self, title, total_items, completed, files_metadata, is_paused=None):
+        if total_items is None:
+            total_items = 0
+            
         self.title         = title
         self.total_items   = total_items
         self.completed     = completed
@@ -209,6 +228,20 @@ class DownloadCard(QWidget):
         self.batch_progress_bar.setMaximum(max(total_items, 1))
         self.batch_progress_bar.setValue(completed)
         self.lbl_status.setText(f"Downloaded {completed} out of {total_items} items")
+        
+        # Sync pause state if provided
+        if is_paused is not None:
+            self.is_paused = is_paused
+            self.btn_pause.setText("▶ Resume" if is_paused else "⏸ Pause")
+            self.lbl_status_text.setText("Paused" if is_paused else "Downloading…")
+            state_val = "paused" if is_paused else "active"
+            self.lbl_status_text.setProperty("state", state_val)
+            self.batch_progress_bar.setProperty("state", state_val)
+            self.lbl_status_text.style().unpolish(self.lbl_status_text)
+            self.lbl_status_text.style().polish(self.lbl_status_text)
+            self.batch_progress_bar.style().unpolish(self.batch_progress_bar)
+            self.batch_progress_bar.style().polish(self.batch_progress_bar)
+
         for i in reversed(range(self.files_layout.count())):
             w = self.files_layout.itemAt(i).widget()
             if w:
@@ -221,6 +254,7 @@ class DownloadCard(QWidget):
             self.total_items = total
             self.batch_progress_bar.setMaximum(max(total, 1))
         self.batch_progress_bar.setValue(current)
+        self.completed = current
         self.lbl_status.setText(f"Downloaded {current} out of {total} items")
         if current >= total:
             self._set_completed_style()
@@ -251,6 +285,19 @@ class DownloadCard(QWidget):
 
     def update_file_progress(self, msg_id, current_bytes, total_bytes, speed_str):
         self.lbl_status_text.setText(f"⬇ {speed_str}")
+        
+        # Extract numeric speed for global stats (e.g. "450 KB/s" -> 450)
+        import re
+        match = re.search(r'([\d.]+)\s*([KMG]?B/s)', speed_str)
+        if match:
+            val = float(match.group(1))
+            unit = match.group(2)
+            if 'MB/s' in unit: val *= 1024
+            elif 'GB/s' in unit: val *= 1024 * 1024
+            self.last_speed_val = val
+        else:
+            self.last_speed_val = 0
+
         self.lbl_status_text.setProperty("state", "active")
         self.lbl_status_text.style().unpolish(self.lbl_status_text)
         self.lbl_status_text.style().polish(self.lbl_status_text)

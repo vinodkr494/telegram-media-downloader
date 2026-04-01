@@ -104,20 +104,21 @@ def launch_app(telegram_worker, version="unknown"):
     apply_theme(is_dark=startup_dark)
 
     window = MainWindow(telegram_worker, version)
-
-    # Sync the sidebar Dark Mode toggle button to reflect the startup theme
-    window.btn_theme.setChecked(startup_dark)
-    if startup_dark:
-        window.btn_theme.setText("Light Mode")
-        from PySide6.QtGui import QIcon as _QIcon
-        icon_p = get_resource_path(os.path.join("assets", "icons", "light-mode.png"))
-        if os.path.exists(icon_p):
-            window.btn_theme.setIcon(_QIcon(icon_p))
-
     window.show()
 
     # Start the worker thread
     telegram_worker.start()
 
-    sys.exit(_app_instance.exec())
+    exit_code = _app_instance.exec()
+    
+    # Ensure worker stops before the thread object is destroyed by GC
+    if telegram_worker.isRunning():
+        telegram_worker.stop()
+        # Increased wait time for clean asyncio shutdown
+        if not telegram_worker.wait(3000):
+            # If it still won't stop, we force quit it (less clean but avoids the error)
+            telegram_worker.terminate()
+            telegram_worker.wait()
+
+    sys.exit(exit_code)
 

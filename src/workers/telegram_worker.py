@@ -36,8 +36,8 @@ class WorkerSignals(QObject):
 
 
 class TelegramWorker(QThread):
-    def __init__(self, session_name, api_id, api_hash):
-        super().__init__()
+    def __init__(self, session_name, api_id, api_hash, parent=None):
+        super().__init__(parent)
         self.session_name = session_name
         self.api_id = api_id
         self.api_hash = api_hash

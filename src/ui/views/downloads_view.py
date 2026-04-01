@@ -4,6 +4,68 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+class CompletedDownloadRow(QFrame):
+    def __init__(self, title, folder_name, parent_view):
+        super().__init__()
+        self.title = title
+        self.folder_name = folder_name
+        self.parent_view = parent_view
+        self.setObjectName("WhiteCard")
+        self.setProperty("compact", True)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 12, 16, 12)
+        
+        lbl_title = QLabel(f"✅ {self.title}")
+        lbl_title.setObjectName("CardTitle")
+        
+        lbl_folder = QLabel(f"Saved to: {self.folder_name}")
+        lbl_folder.setObjectName("MutedText")
+        lbl_folder.setStyleSheet("font-size: 8.5pt;")
+        
+        btn_layout = QHBoxLayout()
+        btn_open = QPushButton("📂 Open Folder")
+        btn_open.setObjectName("PrimaryRowButton")
+        btn_open.setCursor(Qt.PointingHandCursor)
+        btn_open.clicked.connect(lambda: self.parent_view.open_folder(self.folder_name))
+        
+        btn_layout.addWidget(btn_open)
+        btn_layout.addStretch()
+        
+        layout.addWidget(lbl_title)
+        layout.addWidget(lbl_folder)
+        layout.addLayout(btn_layout)
+
+    def show_context_menu(self, pos):
+        from PySide6.QtWidgets import QMenu
+        from PySide6.QtGui import QAction, QClipboard
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        
+        menu = QMenu(self)
+        action_open = menu.addAction("📂 Open Folder")
+        action_copy = menu.addAction("📋 Copy Full Path")
+        menu.addSeparator()
+        action_remove = menu.addAction("🗑 Clear from History")
+        
+        action = menu.exec(self.mapToGlobal(pos))
+        
+        if action == action_open:
+            self.parent_view.open_folder(self.folder_name)
+        elif action == action_copy:
+            from PySide6.QtWidgets import QApplication
+            QApplication.clipboard().setText(os.path.abspath(self.folder_name))
+        elif action == action_remove:
+            self.deleteLater()
+            # If it was the last row, show the empty label
+            # We check if this is the only child of parent's history_layout
+            if self.parent_view.history_layout.count() <= 1:
+                self.parent_view.empty_lbl.show()
+
 class DownloadsView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,9 +119,20 @@ class DownloadsView(QWidget):
         self.content_layout.addWidget(self.active_container)
 
         # 2. Completed Downloads Section
+        completed_header_row = QHBoxLayout()
         self.lbl_completed = QLabel("Completed")
         self.lbl_completed.setObjectName("MainHeader")
-        self.content_layout.addWidget(self.lbl_completed)
+        
+        self.btn_clear_history = QPushButton("🗑 Clear History")
+        self.btn_clear_history.setObjectName("SecondaryButton")
+        self.btn_clear_history.setCursor(Qt.PointingHandCursor)
+        self.btn_clear_history.clicked.connect(self.clear_history)
+        
+        completed_header_row.addWidget(self.lbl_completed)
+        completed_header_row.addStretch()
+        completed_header_row.addWidget(self.btn_clear_history)
+        
+        self.content_layout.addLayout(completed_header_row)
 
         self.history_container = QWidget()
         self.history_layout = QVBoxLayout(self.history_container)
@@ -70,7 +143,7 @@ class DownloadsView(QWidget):
         self.empty_lbl = QLabel("No completed downloads yet.")
         self.empty_lbl.setObjectName("MutedText")
         self.empty_lbl.setAlignment(Qt.AlignCenter)
-        self.history_layout.addWidget(self.empty_lbl)
+        self.content_layout.addWidget(self.empty_lbl)
         
         self.content_layout.addWidget(self.history_container)
         
@@ -88,22 +161,20 @@ class DownloadsView(QWidget):
 
     def add_completed_item(self, title, folder_name):
         self.empty_lbl.hide()
-        
-        item = QFrame()
-        item.setObjectName("WhiteCard")
-        item.setProperty("compact", True)
-        
-        item_layout = QVBoxLayout(item)
-        item_layout.setContentsMargins(16, 16, 16, 16)
-        
-        lbl_title = QLabel(f"✅ {title}")
-        lbl_title.setObjectName("CardTitle")
-        
-        lbl_folder = QLabel(f"Saved to: {folder_name}")
-        lbl_folder.setObjectName("MutedText")
-        lbl_folder.setStyleSheet("font-size: 11px;")
-        
-        item_layout.addWidget(lbl_title)
-        item_layout.addWidget(lbl_folder)
-        
-        self.history_layout.insertWidget(0, item)
+        row = CompletedDownloadRow(title, folder_name, self)
+        self.history_layout.insertWidget(0, row)
+
+    def open_folder(self, path):
+        import os
+        if os.path.exists(path):
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.abspath(path)))
+
+    def clear_history(self):
+        while self.history_layout.count():
+            item = self.history_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+        self.empty_lbl.show()

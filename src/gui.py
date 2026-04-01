@@ -1,7 +1,7 @@
 import os
 import sys
 
-APP_VERSION = "2.4.7"
+APP_VERSION = "2.5.0"
 
 # We add src to path so absolute imports within src work cleanly
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

@@ -3,7 +3,7 @@ import humanize
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QTabWidget, QWidget, QScrollArea,
-    QCheckBox, QFrame, QSizePolicy
+    QCheckBox, QFrame, QSizePolicy, QLineEdit
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon
@@ -31,6 +31,23 @@ class SelectableMediaRow(QWidget):
         self.cb.setCursor(Qt.PointingHandCursor)
         self.cb.stateChanged.connect(self.on_cb_state_changed)
         layout.addWidget(self.cb)
+
+        # 1.5 Icon/Type Badge
+        self.lbl_icon = QLabel()
+        self.lbl_icon.setFixedWidth(40)
+        self.lbl_icon.setAlignment(Qt.AlignCenter)
+        self.lbl_icon.setStyleSheet("font-size: 24px;")
+        
+        icon_emoji = "📄"
+        if getattr(self.msg, 'photo', None):
+            icon_emoji = "🖼️"
+        elif getattr(self.msg, 'video', None) or (getattr(self.msg, 'document', None) and self.msg.document.mime_type.startswith('video/')):
+            icon_emoji = "🎥"
+        elif getattr(self.msg, 'audio', None) or (getattr(self.msg, 'document', None) and self.msg.document.mime_type.startswith('audio/')):
+            icon_emoji = "🎵"
+        
+        self.lbl_icon.setText(icon_emoji)
+        layout.addWidget(self.lbl_icon)
 
         # 2. Information Stack
         info_stack = QVBoxLayout()
@@ -117,6 +134,18 @@ class MediaBrowserDialog(QDialog):
         header_lbl.setObjectName("MainHeader")
         layout.addWidget(header_lbl)
 
+        # 🔍 Search Bar
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(10)
+        
+        self.inp_search = QLineEdit()
+        self.inp_search.setPlaceholderText("🔍 Filter files by name...")
+        self.inp_search.setMinimumHeight(40)
+        self.inp_search.textChanged.connect(self.filter_rows)
+        
+        search_layout.addWidget(self.inp_search)
+        layout.addLayout(search_layout)
+
         # Tabs
         self.tabs = QTabWidget()
         self.tabs.setObjectName("MediaTabs")
@@ -152,6 +181,7 @@ class MediaBrowserDialog(QDialog):
         bottom_layout.addWidget(self.btn_download)
 
         layout.addLayout(bottom_layout)
+        self.inp_search.setFocus()
 
     def build_tab(self, tab_key):
         tab_widget = QWidget()
@@ -209,6 +239,14 @@ class MediaBrowserDialog(QDialog):
         for row in self.rows.get(tab_key, []):
             row.setChecked(state)
 
+    def filter_rows(self, text):
+        search_text = text.lower().strip()
+        for tab_rows in self.rows.values():
+            for row in tab_rows:
+                # Basic name matching
+                title = row.lbl_title.text().lower()
+                row.setVisible(search_text in title)
+
     def update_selected_count(self):
         count = 0
         self.selected_messages.clear()
@@ -220,6 +258,12 @@ class MediaBrowserDialog(QDialog):
                     self.selected_messages.append(row.msg)
                     
         self.lbl_selected_count.setText(f"{count} files selected")
+
+        # Visual feedback: Turn text green if > 0
+        if count > 0:
+            self.lbl_selected_count.setStyleSheet("color: #4CAF50; font-weight: bold;")
+        else:
+            self.lbl_selected_count.setStyleSheet("")
 
     def get_selected_messages(self):
         return self.selected_messages
