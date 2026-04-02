@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         # Premium/Rich look with HTML
         text = f"""
         <h2 style='color: #2196F3;'>TG Media Downloader</h2>
-        <p><b>Version:</b> v{os.getenv('APP_VERSION', '2.4.7')}</p>
+        <p><b>Version:</b> v{self.version}</p>
         <p>A modern, high-performance Telegram media downloader built with PySide6 and Telethon.</p>
         <hr/>
         <p>Enjoying the app? Consider supporting development by starring our repository!</p>
