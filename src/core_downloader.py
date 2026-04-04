@@ -11,46 +11,34 @@ from telethon.tl.types import (
     InputMessagesFilterMusic,
     InputMessagesFilterUrl,
     InputMessagesFilterGif,
+    InputMessagesFilterVoice,
+    InputMessagesFilterRoundVideo,
     MessageMediaPhoto,
     MessageMediaDocument
 )
-from resource_utils import get_project_root
-STATE_FILE = os.path.join(get_project_root(), "download_state.json")
-TASKS_FILE = os.path.join(get_project_root(), "active_tasks.json")
+from database import save_task_db, load_active_tasks_db, remove_task_db, cache_media_list, mark_media_completed, get_completed_state_db
 
 def load_active_tasks():
-    if os.path.exists(TASKS_FILE):
-        try:
-            with open(TASKS_FILE, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Error loading tasks: {e}")
-            return []
-    return []
+    return load_active_tasks_db()
 
 def save_active_tasks(tasks):
-    try:
-        with open(TASKS_FILE, "w") as f:
-            json.dump(tasks, f)
-    except Exception as e:
-        print(f"Error saving tasks: {e}")
+    # For backward compatibility, keep the loop but save each to DB
+    for t in tasks:
+        save_task_db(t)
 
-def load_download_state():
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r") as f:
-                return set(json.load(f))
-        except Exception as e:
-            print(f"Error loading state: {e}")
-            return set()
-    return set()
+def load_download_state(channel_id=None):
+    # We return a set of msg_ids for a specific channel to ensure ID isolation
+    res = get_completed_state_db()
+    if channel_id:
+        c_id = str(channel_id).replace("-100", "", 1)
+        return {msg_id for ch_id, msg_id in res if ch_id == c_id}
+    return {msg_id for ch_id, msg_id in res}
 
 def save_download_state(state):
-    try:
-        with open(STATE_FILE, "w") as f:
-            json.dump(list(state), f)
-    except Exception as e:
-        print(f"Error saving state: {e}")
+    # This is usually called file-by-file in the worker via complete_cb
+    # but if called globally, we can't easily map to channels here.
+    # We recommend using mark_media_completed instead.
+    pass
 
 async def fetch_channel(client, channel_input):
     """
@@ -234,6 +222,18 @@ async def download_single_file(client, channel, message, folder_name, progress_c
 
             if complete_cb:
                 complete_cb(message.id, filepath=file_path)
+                
+                # 📝 Message-Media Linker: Save sidecar .txt if message has text
+                if file_path and os.path.exists(file_path):
+                    msg_text = (message.message or "").strip()
+                    if msg_text:
+                        base_path = os.path.splitext(file_path)[0]
+                        txt_path = base_path + ".txt"
+                        try:
+                            with open(txt_path, "w", encoding="utf-8") as f:
+                                f.write(msg_text)
+                        except Exception as e:
+                            print(f"Error saving sidecar text: {e}")
             break
 
         except asyncio.CancelledError:
@@ -258,8 +258,13 @@ async def download_in_batches_headless(client, channel, messages, folder_name, b
     
     def internal_complete(msg_id, paused=False, filepath=None):
         if not paused:
+            # Persistent state in SQLite
+            from telethon.utils import get_peer_id
+            try:
+                ch_id = get_peer_id(channel)
+                mark_media_completed(ch_id, msg_id)
+            except: pass
             downloaded_state.add(msg_id)
-            save_download_state(downloaded_state)
         if complete_cb:
             complete_cb(msg_id, paused=paused, filepath=filepath)
 
@@ -314,24 +319,81 @@ async def get_messages_by_type(client, channel, media_choice, min_id=None, max_i
 async def fetch_categorized_media(client, channel, limit=500):
     """
     Fetches up to `limit` messages for each distinct media category IN PARALLEL.
-    All 6 filters run simultaneously via asyncio.gather, ~5x faster than sequential.
-    Returns a dict: {"Media": [...], "Files": [...], "Music": [...], "Links": [...], "GIFs": [...]}
+    Now uses a semaphore to prevent "Server closed the connection" errors and includes retries.
     """
-    (photos, videos, files, music, links, gifs) = await asyncio.gather(
-        client.get_messages(channel, filter=InputMessagesFilterPhotos(), limit=limit),
-        client.get_messages(channel, filter=InputMessagesFilterVideo(), limit=limit),
-        client.get_messages(channel, filter=InputMessagesFilterDocument(), limit=limit),
-        client.get_messages(channel, filter=InputMessagesFilterMusic(), limit=limit),
-        client.get_messages(channel, filter=InputMessagesFilterUrl(), limit=limit),
-        client.get_messages(channel, filter=InputMessagesFilterGif(), limit=limit),
-    )
+    # 🛡️ Limit concurrency to 3 simultaneous requests to avoid socket overload
+    sem = asyncio.Semaphore(3)
+    
+    async def get_messages_with_sem(filter_type=None, limit_val=limit):
+        async with sem:
+            for attempt in range(3):
+                try:
+                    return await client.get_messages(channel, filter=filter_type, limit=limit_val)
+                except Exception as e:
+                    if "closed the connection" in str(e).lower() and attempt < 2:
+                        await asyncio.sleep(1) # Wait a bit before retry
+                        continue
+                    raise e
+
+    try:
+        # Fetch fresh data from Telegram
+        (photos, videos, round_vids, docs, music, voice, links, gifs, all_msgs) = await asyncio.gather(
+            get_messages_with_sem(InputMessagesFilterPhotos()),
+            get_messages_with_sem(InputMessagesFilterVideo()),
+            get_messages_with_sem(InputMessagesFilterRoundVideo()),
+            get_messages_with_sem(InputMessagesFilterDocument()),
+            get_messages_with_sem(InputMessagesFilterMusic()),
+            get_messages_with_sem(InputMessagesFilterVoice()),
+            get_messages_with_sem(InputMessagesFilterUrl()),
+            get_messages_with_sem(InputMessagesFilterGif()),
+            get_messages_with_sem(limit_val=limit) # Base feed
+        )
+        
+        # 🗄️ CACHE RESULTS IN SQLite for faster tab switching
+        from telethon.utils import get_peer_id
+        try:
+            ch_id = get_peer_id(channel)
+            m_dict = {
+                "Media": sorted(list(photos) + list(videos) + list(round_vids), key=lambda m: m.id, reverse=True),
+                "Files": list(docs),
+                "ZIPs": [m for m in docs if m.document and m.document.mime_type in ["application/zip", "application/x-rar-compressed", "application/x-7z-compressed"]],
+                "Music": list(music),
+                "Voice": list(voice),
+                "Links": list(links),
+                "GIFs": list(gifs),
+                "Chat": [m for m in all_msgs if getattr(m, 'media', None) is None and (m.message or "").strip()]
+            }
+            cache_media_list(ch_id, m_dict)
+        except Exception as cache_err:
+            print(f"Failed to cache media: {cache_err}")
+            
+    except Exception as e:
+        print(f"Fetch Categorized Media global failure: {e}")
+        return {k.lower(): [] for k in ["Media", "Files", "ZIPs", "Music", "Voice", "Links", "GIFs", "Chat", "All"]}
+
+    # ZIPs/Archives secondary filter from documents
+    zips = [m for m in docs if m.document and m.document.mime_type in ["application/zip", "application/x-rar-compressed", "application/x-7z-compressed"]]
+    
+    # "Chat" = messages with NO media at all
+    chats = [m for m in all_msgs if getattr(m, 'media', None) is None and (m.message or "").strip()]
+
+    # Aggregate into "All" - Using a dict to deduplicate by message ID
+    all_dict = {}
+    all_raw = list(photos) + list(videos) + list(round_vids) + list(docs) + list(music) + list(voice) + list(links) + list(gifs) + list(chats)
+    for m in all_raw:
+        all_dict[m.id] = m
+    all_sorted = sorted(all_dict.values(), key=lambda x: x.id, reverse=True)
 
     return {
-        "Media": sorted(list(photos) + list(videos), key=lambda m: m.id, reverse=True)[:limit],
-        "Files": list(files),
+        "All":   all_sorted[:limit], # Limit the "All" tab to the most recent items
+        "Media": sorted(list(photos) + list(videos) + list(round_vids), key=lambda m: m.id, reverse=True)[:limit],
+        "Files": list(docs),
+        "ZIPs":  list(zips),
         "Music": list(music),
+        "Voice": list(voice),
         "Links": list(links),
         "GIFs":  list(gifs),
+        "Chat":  list(chats),
     }
 
 def get_folder_name(media_choice):

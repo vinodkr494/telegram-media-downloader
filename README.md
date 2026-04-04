@@ -5,26 +5,20 @@
 
 🚀 **Bulk-download videos, images, PDFs, audio & more** from any Telegram channel or group. Features a **Premium PySide6 Dashboard** with high-performance analytics, **Global Queue Tracking** (Total progress % & Session usage), **Advanced Task Management** (Prioritize & Cancel), category browser, real-time search, parallel downloads, smart deduplication, speed limiter, proxy support, and desktop notifications.
 
----## ✨ What's New in v2.5.0 (UI Polish & QoL Overhaul)
+### 🗄️ SQLite Persistence Engine
+Transitioned from legacy JSON files to a robust, indexed **SQLite database**. All tasks, message IDs, and download states are now stored with full data integrity.
 
-### 🎨 Professional UI Refresh
-Replaced legacy emoji-based navigation labels with **professional, high-quality icon assets**. Navigation is now cleaner, perfectly aligned, and uses HSL-tailored colors for better contrast in both Light and Dark modes.
+### 🚀 Instant Media Browser
+Experience zero-wait browsing. The application now **caches all media types** locally, allowing you to open the browser instantly with previously fetched data while the background worker refreshes the list from Telegram.
 
-### 📊 Global Queue Analytics
-The new **Right-Aligned Status Bar** now tracks your entire session in real-time:
-- **Total Progress %**: See the completion percentage of your entire download queue.
-- **Session Usage**: Track exactly how much data (MB/GB) you've downloaded in the current session.
-- **Unified Speed**: Real-time calculation of total throughput across all active tasks.
+### 📏 768p Display Optimization
+Refined UI dimensions and dialog heights (max 650px) to ensure a **perfect fit on standard laptop displays** and low-resolution monitors.
 
-### ⚡ Advanced Task Management
-Full control over your queue with dedicated buttons on every download card:
-- 🗑 **Cancel / Remove**: Stop a task and remove it from the queue with a single click.
-- ⬆ / ⬇ **Prioritize Tasks**: Reorder whole batches (cards) in the main queue to decide which entire group or channel downloads next.
-- 📂 **Quick Access**: Double-click any card to instantly open its download folder.
+### 🛡️ Channel-Isolated Progress
+Eliminated cross-channel ID collisions. Download completion and selection status are now tracked independently per channel, ensuring 100% accuracy in large queues.
 
-### 🔔 Desktop Notifications & Tray Actions
-- **Completion Alerts**: Receive a native Windows/macOS/Linux notification when a whole batch is finished.
-- **Tray Context Menu**: Right-click the system icon to **Pause All** or **Resume All** without opening the window.
+### 🎨 Theme-Aware Context Menus
+Context menus (Right-Click) now dynamically adopt the application's theme, providing a consistent premium experience in both Light and Dark modes.
 
 ---
 
@@ -130,21 +124,25 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Changelog
 
+### v2.6.0
+- 🗄️ **SQLite Persistence Engine** — transitioned from legacy JSON files to a robust, indexed SQLite database for all tasks and download history.
+- 🚀 **Instant Media Browser** — introduced high-performance content caching. Browse previously fetched media instantly while the app refreshes in the background.
+- 📏 **768p Display Optimization** — refined window heights and dialog constraints to ensure a perfect fit on standard laptop and low-resolution displays.
+- 🛡️ **Channel-Isolated Progress** — eliminated cross-channel ID collisions. Download progress and completion status are now tracked independently per channel.
+- 🎨 **Theme-Aware Menus** — context menus now dynamically adopt Light/Dark mode styling for a cohesive premium experience.
+
 ### v2.5.0
 - 🎨 **UI Overhaul** — replaced legacy emoji-based navigation with professional, high-quality icon assets and refined QSS typography.
 - 📊 **Global Analytics** — introduced real-time session data, total completion %, and consolidated status bar metrics.
 - ⚡ **Queue Mastery** — added Cancel (Remove) and Prioritize (Up/Down) functionality to the download cards.
 - 🔔 **Native Feedback** — implemented desktop notifications for task completion and an enhanced tray context menu.
-- 🖱 **Ddouble-Click Gestures** — double-click task cards to jump directly to the download folder.
+- 🖱 **Double-Click Gestures** — double-click task cards to jump directly to the download folder.
 - 🔍 **Search Focus** — auto-focuses the search bar upon opening the Media Browser for faster filtering.
 
 ### v2.4.7
 - 💾 **Robust Persistence** — centralized all persistent files (`.env`, `config.json`, `download_state.json`, `active_tasks.json`, and `.session`) fixing persistence issues in standalone builds.
 - 🌓 **Improved .env Logic** — added automatic quote stripping for `API_ID` and `API_HASH` and persisted `PHONE` for a seamless login experience.
 - 🛡️ **Path Resolver Sync** — ensured all UI components and background workers use the centralized `get_project_root` helper.
-MainWindow, SettingsView, LoginView) and background workers to use the new centralized `get_project_root` helper.
-
-### v2.4.6
 
 ### v2.4.5
 - ⏯️ **Pause Reliability** — implemented active task tracking to prevent duplicate background threads; clicking "Pause" now reliably stops all activity for that task immediately
@@ -256,3 +254,5 @@ Our mission is to bridge the gap between complex terminal-based downloaders and 
 ---
 
 Made with ❤️ by [Vinod Kumar](https://github.com/vinodkr494).
+
+[![Star History Chart](https://api.star-history.com/svg?repos=vinodkr494/telegram-media-downloader&type=Date)](https://star-history.com/#vinodkr494/telegram-media-downloader&Date)

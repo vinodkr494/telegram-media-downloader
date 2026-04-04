@@ -1,7 +1,7 @@
 import os
 import sys
 
-APP_VERSION = "2.5.0"
+APP_VERSION = "2.6.0"
 
 # We add src to path so absolute imports within src work cleanly
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 from workers.telegram_worker import TelegramWorker
 import ui.app
+from database import init_db, migrate_json_to_db
 
 def main():
     # 0. Windows Taskbar Icon Fix (Set AppUserModelID)
@@ -19,6 +20,10 @@ def main():
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
         pass
+
+    # -1. Initialize DB and Migrate Legacy Data
+    init_db()
+    migrate_json_to_db()
 
     from resource_utils import get_project_root
     env_path = os.path.join(get_project_root(), '.env')
@@ -42,4 +47,11 @@ def main():
     ui.app.launch_app(worker, APP_VERSION)
 
 if __name__ == "__main__":
-    main()
+    try:
+        print("DEBUG: Entry point started")
+        main()
+    except Exception as e:
+        print(f"FATAL ERROR AT ENTRY: {e}")
+        import traceback
+        traceback.print_exc()
+        input("Press Enter to close...") # Hold the terminal open

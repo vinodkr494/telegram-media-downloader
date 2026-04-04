@@ -40,6 +40,7 @@ class DownloadCard(QWidget):
     removeRequested = Signal(str)
     moveUpRequested = Signal(str)
     moveDownRequested = Signal(str)
+    reselectRequested = Signal(str)
 
     # ──────────────────────────────────────────────────────────────────────────
     # UI
@@ -108,6 +109,14 @@ class DownloadCard(QWidget):
         self.lbl_status.setAlignment(Qt.AlignCenter)
         rc.addWidget(self.lbl_status)
 
+        # row 3.5 - verify status (hidden by default)
+        self.lbl_verify_status = QLabel("")
+        self.lbl_verify_status.setObjectName("MutedText")
+        self.lbl_verify_status.setAlignment(Qt.AlignCenter)
+        self.lbl_verify_status.setStyleSheet("color: #FBBF24; font-weight: bold;")
+        self.lbl_verify_status.setVisible(False)
+        rc.addWidget(self.lbl_verify_status)
+
         # row 4 – action buttons
         ar = QHBoxLayout()
         ar.setSpacing(6)
@@ -120,11 +129,22 @@ class DownloadCard(QWidget):
         self.btn_folder.setObjectName("CardButton")
         self.btn_folder.clicked.connect(self.open_folder)
 
+        self.btn_verify = QPushButton("🛡️ Verify")
+        self.btn_verify.setObjectName("CardButton")
+        self.btn_verify.clicked.connect(self.run_health_check)
+
         self.btn_trash = QPushButton("🗑 Remove")
         self.btn_trash.setObjectName("CardButton")
 
+        self.btn_reselect = QPushButton("🔄 Re-select")
+        self.btn_reselect.setObjectName("CardButton")
+        self.btn_reselect.setToolTip("Add or remove files for this specific task")
+        self.btn_reselect.clicked.connect(lambda: self.reselectRequested.emit(self.task_id))
+
         ar.addWidget(self.btn_pause)
         ar.addWidget(self.btn_folder)
+        ar.addWidget(self.btn_verify)
+        ar.addWidget(self.btn_reselect)
         ar.addWidget(self.btn_trash)
         ar.addStretch()
 
@@ -229,18 +249,27 @@ class DownloadCard(QWidget):
         self.batch_progress_bar.setValue(completed)
         self.lbl_status.setText(f"Downloaded {completed} out of {total_items} items")
         
-        # Sync pause state if provided
-        if is_paused is not None:
-            self.is_paused = is_paused
-            self.btn_pause.setText("▶ Resume" if is_paused else "⏸ Pause")
-            self.lbl_status_text.setText("Paused" if is_paused else "Downloading…")
-            state_val = "paused" if is_paused else "active"
+        # Sync pause/completed status if we now have pending items
+        if total_items > completed:
+            state_val = "active"
+            if is_paused is not None:
+                self.is_paused = is_paused
+                self.btn_pause.setText("▶ Resume" if is_paused else "⏸ Pause")
+                self.lbl_status_text.setText("Paused" if is_paused else "Downloading…")
+                state_val = "paused" if is_paused else "active"
+            
+            self.btn_pause.setEnabled(True)
             self.lbl_status_text.setProperty("state", state_val)
             self.batch_progress_bar.setProperty("state", state_val)
-            self.lbl_status_text.style().unpolish(self.lbl_status_text)
-            self.lbl_status_text.style().polish(self.lbl_status_text)
-            self.batch_progress_bar.style().unpolish(self.batch_progress_bar)
-            self.batch_progress_bar.style().polish(self.batch_progress_bar)
+        elif total_items > 0 and completed >= total_items:
+            self._set_completed_style()
+            self.btn_pause.setEnabled(False)
+        
+        # Force style refresh for properties
+        self.lbl_status_text.style().unpolish(self.lbl_status_text)
+        self.lbl_status_text.style().polish(self.lbl_status_text)
+        self.batch_progress_bar.style().unpolish(self.batch_progress_bar)
+        self.batch_progress_bar.style().polish(self.batch_progress_bar)
 
         for i in reversed(range(self.files_layout.count())):
             w = self.files_layout.itemAt(i).widget()
@@ -256,7 +285,9 @@ class DownloadCard(QWidget):
         self.batch_progress_bar.setValue(current)
         self.completed = current
         self.lbl_status.setText(f"Downloaded {current} out of {total} items")
-        if current >= total:
+        
+        # Only mark as completed if total > 0 (it may be 0 while still loading metadata)
+        if total > 0 and current >= total:
             self._set_completed_style()
             self.btn_pause.setEnabled(False)
 
@@ -333,6 +364,59 @@ class DownloadCard(QWidget):
         self.lbl_status_text.style().polish(self.lbl_status_text)
         self.batch_progress_bar.style().unpolish(self.batch_progress_bar)
         self.batch_progress_bar.style().polish(self.batch_progress_bar)
+
+    def run_health_check(self):
+        self.btn_verify.setEnabled(False)
+        self.btn_verify.setText("🛡️ Verifying...")
+        self.lbl_verify_status.setVisible(True)
+        self.lbl_verify_status.setText("Checking file integrity...")
+        
+        # We'll do a basic size check first locally
+        corrupt = 0
+        missing = 0
+        valid = 0
+        
+        for msg_id, row in self.file_rows.items():
+            # Find metadata
+            meta = next((m for m in self.files_metadata if m["id"] == msg_id), None)
+            if not meta: continue
+            
+            fpath = os.path.join(self.folder_name, meta["name"])
+            if not os.path.exists(fpath):
+                missing += 1
+                row.icon.setText("❓")
+                row.bar.setProperty("state", "idle")
+            else:
+                actual_size = os.path.getsize(fpath)
+                if meta["size"] > 0 and actual_size != meta["size"]:
+                    corrupt += 1
+                    row.icon.setText("⚠️")
+                    row.bar.setProperty("state", "paused")
+                else:
+                    valid += 1
+                    row.icon.setText("✅")
+                    row.bar.setProperty("state", "completed")
+            row.bar.style().unpolish(row.bar)
+            row.bar.style().polish(row.bar)
+            
+        if corrupt > 0 or missing > 0:
+            self.lbl_verify_status.setText(f"Done: {valid} OK, {corrupt} Corrupt, {missing} Missing")
+            self.lbl_verify_status.setStyleSheet("color: #EF4444;") # Red
+            self.btn_verify.setText("🛡️ Fix 0%?") # Mock button text change
+        else:
+            self.lbl_verify_status.setText("All files verified successfully!")
+            self.lbl_verify_status.setStyleSheet("color: #10B981;") # Green
+            
+        self.btn_verify.setEnabled(True)
+        self.btn_verify.setText("🛡️ Verify")
+
+    def set_reselect_loading(self, loading):
+        if loading:
+            self.btn_reselect.setText("⏳ Loading...")
+            self.btn_reselect.setEnabled(False)
+        else:
+            self.btn_reselect.setText("🔄 Re-select")
+            self.btn_reselect.setEnabled(True)
 
     def open_folder(self):
         if os.path.exists(self.folder_name):

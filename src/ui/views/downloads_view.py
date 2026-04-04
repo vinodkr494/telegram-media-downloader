@@ -2,7 +2,8 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QScrollArea, QFrame, QPushButton
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
+import os
 
 class CompletedDownloadRow(QFrame):
     def __init__(self, title, folder_name, parent_view):
@@ -14,6 +15,7 @@ class CompletedDownloadRow(QFrame):
         self.setProperty("compact", True)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
+        self.task_id = getattr(parent_view, '_last_task_id', None) # We'll pass this via add_completed_item
         self.setup_ui()
 
     def setup_ui(self):
@@ -41,14 +43,19 @@ class CompletedDownloadRow(QFrame):
         layout.addLayout(btn_layout)
 
     def show_context_menu(self, pos):
-        from PySide6.QtWidgets import QMenu
-        from PySide6.QtGui import QAction, QClipboard
+        from PySide6.QtWidgets import QMenu, QApplication
+        from PySide6.QtGui import QAction, QClipboard, QDesktopServices
         from PySide6.QtCore import QUrl
-        from PySide6.QtGui import QDesktopServices
         
         menu = QMenu(self)
         action_open = menu.addAction("📂 Open Folder")
         action_copy = menu.addAction("📋 Copy Full Path")
+        
+        action_refetch = None
+        if self.task_id:
+            menu.addSeparator()
+            action_refetch = menu.addAction("🔄 Re-fetch This Channel")
+            
         menu.addSeparator()
         action_remove = menu.addAction("🗑 Clear from History")
         
@@ -57,8 +64,11 @@ class CompletedDownloadRow(QFrame):
         if action == action_open:
             self.parent_view.open_folder(self.folder_name)
         elif action == action_copy:
-            from PySide6.QtWidgets import QApplication
             QApplication.clipboard().setText(os.path.abspath(self.folder_name))
+        elif action == action_refetch:
+            # Task ID is usually 'ChannelID_MediaID'
+            chan_id = self.task_id.rsplit('_', 1)[0]
+            self.parent_view.reFetchRequested.emit(chan_id)
         elif action == action_remove:
             self.deleteLater()
             # If it was the last row, show the empty label
@@ -67,6 +77,7 @@ class CompletedDownloadRow(QFrame):
                 self.parent_view.empty_lbl.show()
 
 class DownloadsView(QWidget):
+    reFetchRequested = Signal(str)
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setup_ui()
@@ -159,9 +170,10 @@ class DownloadsView(QWidget):
             self.btn_pause_all.hide()
             self.btn_resume_all.hide()
 
-    def add_completed_item(self, title, folder_name):
+    def add_completed_item(self, title, folder_name, task_id=None):
         self.empty_lbl.hide()
         row = CompletedDownloadRow(title, folder_name, self)
+        row.task_id = task_id # Store the full ID for re-fetching
         self.history_layout.insertWidget(0, row)
 
     def open_folder(self, path):

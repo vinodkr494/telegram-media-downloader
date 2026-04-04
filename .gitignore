@@ -10,3 +10,10 @@ __pycache__/
 *.pyc
 *.patch
 *.pyi
+
+# 🗄️ Database & Snapshots
+downloader.db
+*.db
+*.db-journal
+*.bak
+config.json

@@ -12,6 +12,32 @@ QToolTip {
     border-radius: 4px;
 }
 
+QMenu {
+    background-color: #1E293B;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 4px;
+    color: #F8FAFC;
+}
+
+QMenu::item {
+    background-color: transparent;
+    padding: 6px 24px 6px 24px;
+    border-radius: 4px;
+    color: #F8FAFC;
+}
+
+QMenu::item:selected {
+    background-color: #334155;
+    color: #2BA5E4;
+}
+
+QMenu::separator {
+    height: 1px;
+    background: #334155;
+    margin: 4px 8px 4px 8px;
+}
+
 QMainWindow, QWidget#CentralWidget {
     background-color: #0B1120; /* Deep dark blue background */
     color: #F8FAFC;
@@ -270,6 +296,13 @@ QProgressBar {
     font-size: 12px;
 }
 
+/* Calendar/Date Picker */
+QCalendarWidget QWidget#qt_calendar_navigationbar { background-color: #1E293B; }
+QCalendarWidget QToolButton { color: #F8FAFC; background-color: transparent; border: none; font-weight: bold; }
+QCalendarWidget QAbstractItemView:enabled { color: #F8FAFC; background-color: #0F172A; selection-background-color: #2BA5E4; selection-color: white; }
+QCalendarWidget QAbstractItemView:disabled { color: #64748B; }
+QCalendarWidget { background-color: #0F172A; border: 1px solid #334155; border-radius: 8px; }
+
 /* Dialogs & Tabs */
 QDialog {
     background-color: #0B1120;
@@ -368,13 +401,27 @@ QLabel#DialogStatus {
 QPushButton#SuccessButton {
     background-color: #10B981;
     color: white;
-    border-radius: 8px;
-    padding: 10px 24px;
-    font-weight: 700;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    padding: 8px 16px;
 }
 QPushButton#SuccessButton:hover {
     background-color: #059669;
 }
+
+QPushButton#LogoutBtn {
+    background-color: transparent;
+    color: #F87171;
+    border: 1px solid #F87171;
+    border-radius: 6px;
+    font-weight: bold;
+}
+QPushButton#LogoutBtn:hover {
+    background-color: #450A0A;
+    color: #FEE2E2;
+}
+
 QFrame#expandArea {
     background: #1E293B;
     border: 1px solid #334155;
