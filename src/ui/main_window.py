@@ -71,6 +71,11 @@ class MainWindow(QMainWindow):
         <h2 style='color: #2196F3;'>TG Media Downloader</h2>
         <p><b>Version:</b> v{self.version}</p>
         <p>A modern, high-performance Telegram media downloader built with PySide6 and Telethon.</p>
+        <ul style='color: #555; padding-left: 20px;'>
+            <li>✨ <b>Instant Loading:</b> Zero-wait cached media browsing.</li>
+            <li>⚡ <b>Byte-Range Resuming:</b> Flawless pause & resume via explicit offsets.</li>
+            <li>🗄️ <b>SQLite Persistence:</b> Robust, crash-proof active queues.</li>
+        </ul>
         <hr/>
         <p>Enjoying the app? Consider supporting development by starring our repository!</p>
         <p><a href='https://github.com/vinodkr494/telegram-media-downloader' style='color: #FFC107; font-weight: bold; font-size: 14px;'>⭐ Star on GitHub</a></p>
@@ -542,6 +547,8 @@ class MainWindow(QMainWindow):
         
         self.btn_fetch.setText("Fetching...")
         self.btn_fetch.setEnabled(False)
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
         
         # 🚀 Instant Load from Cache to "WOW" the user
         from database import get_cached_media
@@ -550,14 +557,21 @@ class MainWindow(QMainWindow):
             # Reconstruct categorized dict from DB rows
             c_dict = {k.lower(): [] for k in ["Media", "Files", "ZIPs", "Music", "Voice", "Links", "GIFs", "Chat", "All"]}
             import collections
-            # Simple mock objects that UI expects
-            MockMsg = collections.namedtuple('MockMsg', ['id', 'message', 'date', 'file', 'photo', 'document'])
+            MockMsg = collections.namedtuple('MockMsg', ['id', 'message', 'date', 'size', 'media_type', 'is_mock'])
             for row in cached:
-                m = MockMsg(id=row["msg_id"], message=row["title"], date=row["date"], file=None, photo=None, document=None)
-                # Map back to category
+                m = MockMsg(id=row["msg_id"], message=row["title"], date=row["date"], size=row["size"], media_type=row["media_type"], is_mock=True)
                 cat = row["media_type"].lower()
-                if cat in c_dict: c_dict[cat].append(m)
+                if cat in c_dict:
+                    c_dict[cat].append(m)
+                
+                # ZIPs also belong in Files
+                if cat == 'zips':
+                    c_dict['files'].append(m)
+                    
                 c_dict["all"].append(m)
+                
+            for k in c_dict:
+                c_dict[k].sort(key=lambda x: x.id, reverse=True)
             
             # Show dialog immediately with cached data
             # To avoid blocking the background fetch signal, we use a single shot timer
@@ -805,6 +819,9 @@ class MainWindow(QMainWindow):
             if task_id in self.card_widgets:
                 self.card_widgets[task_id].set_reselect_loading(True)
                 
+            from PySide6.QtWidgets import QApplication
+            QApplication.processEvents()
+            
             channel_input, media_id_str = task_id.rsplit('_', 1)
             # 2. Trigger a normal fetch for this channel
             self.input_channel.setText(channel_input)

@@ -136,7 +136,7 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                 expected_filepath = os.path.join(folder_name, file_name)
                 if os.path.exists(expected_filepath):
                     existing_size = os.path.getsize(expected_filepath)
-                    if file_size and existing_size == file_size:
+                    if file_size and existing_size >= file_size:
                         if progress_cb:
                             progress_cb(message.id, existing_size, existing_size, speed_str="Skipped (Exists)")
                         if complete_cb:
@@ -146,7 +146,7 @@ async def download_single_file(client, channel, message, folder_name, progress_c
             # Speed tracking variables
             start_time = [time.time()]
             last_bytes = [0]
-            cancelled_by_event = [False]
+            is_first_cb = [True]
             
             class PauseRequested(Exception): pass
             
@@ -154,6 +154,14 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                 if cancel_event and cancel_event.is_set():
                     raise PauseRequested()
                 
+                if is_first_cb[0]:
+                    is_first_cb[0] = False
+                    last_bytes[0] = current
+                    start_time[0] = time.time()
+                    if progress_cb:
+                        progress_cb(message.id, current, total or file_size, speed_str="Resuming..." if current > 0 else "Starting...")
+                    return
+
                 now = time.time()
                 elapsed = now - start_time[0]
                 if elapsed >= 0.1:
@@ -176,10 +184,12 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                         progress_cb(message.id, current, total or file_size, speed_str=speed_str)
 
             dir_path = os.path.join(folder_name, "")
+            target_path = expected_filepath if file_name else dir_path
+            
             file_path = None
             try:
                 file_path = await message.download_media(
-                    file=dir_path,
+                    file=target_path,
                     progress_callback=internal_progress,
                 )
             except PauseRequested:
@@ -321,8 +331,8 @@ async def fetch_categorized_media(client, channel, limit=500):
     Fetches up to `limit` messages for each distinct media category IN PARALLEL.
     Now uses a semaphore to prevent "Server closed the connection" errors and includes retries.
     """
-    # 🛡️ Limit concurrency to 3 simultaneous requests to avoid socket overload
-    sem = asyncio.Semaphore(3)
+    # 🛡️ Limit concurrency to 1 simultaneous request to prevent Telegram from forcefully dropping connections
+    sem = asyncio.Semaphore(1)
     
     async def get_messages_with_sem(filter_type=None, limit_val=limit):
         async with sem:

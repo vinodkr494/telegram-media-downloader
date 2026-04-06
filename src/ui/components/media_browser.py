@@ -40,26 +40,35 @@ class SelectableMediaRow(QWidget):
         self.lbl_icon.setStyleSheet("font-size: 24px;")
         
         icon_emoji = "📄"
-        mime = getattr(self.msg.document, 'mime_type', '') if getattr(self.msg, 'document', None) else ""
-        
-        if getattr(self.msg, 'photo', None):
-            icon_emoji = "🖼️"
-        elif getattr(self.msg, 'video', None) or mime.startswith('video/'):
-            # Detect Round Video
-            if hasattr(self.msg, 'video') and getattr(self.msg.video, 'round', False):
-                icon_emoji = "🎬"
-            else:
-                icon_emoji = "🎥"
-        elif getattr(self.msg, 'audio', None) or mime.startswith('audio/'):
-            icon_emoji = "🎵"
-        elif getattr(self.msg, 'voice', None) or mime.startswith('audio/ogg'):
-             icon_emoji = "🎤"
-        elif getattr(self.msg, 'gif', None) or mime == 'video/mp4' and 'animated' in str(self.msg.media).lower():
-            icon_emoji = "🎞️"
-        elif mime in ["application/zip", "application/x-rar-compressed", "application/x-7z-compressed"]:
-            icon_emoji = "📦"
-        elif getattr(self.msg, 'web_preview', None):
-            icon_emoji = "🔗"
+        if getattr(self.msg, 'is_mock', False):
+            cat = getattr(self.msg, 'media_type', '').lower()
+            if cat == 'media': icon_emoji = "🎬"
+            elif cat == 'zips': icon_emoji = "📦"
+            elif cat == 'music': icon_emoji = "🎵"
+            elif cat == 'voice': icon_emoji = "🎤"
+            elif cat == 'links': icon_emoji = "🔗"
+            elif cat == 'gifs': icon_emoji = "🎞️"
+            elif cat == 'chat': icon_emoji = "💬"
+        else:
+            mime = getattr(self.msg.document, 'mime_type', '') if getattr(self.msg, 'document', None) else ""
+            if getattr(self.msg, 'photo', None):
+                icon_emoji = "🖼️"
+            elif getattr(self.msg, 'video', None) or mime.startswith('video/'):
+                # Detect Round Video
+                if hasattr(self.msg, 'video') and getattr(self.msg.video, 'round', False):
+                    icon_emoji = "🎬"
+                else:
+                    icon_emoji = "🎥"
+            elif getattr(self.msg, 'audio', None) or mime.startswith('audio/'):
+                icon_emoji = "🎵"
+            elif getattr(self.msg, 'voice', None) or mime.startswith('audio/ogg'):
+                 icon_emoji = "🎤"
+            elif getattr(self.msg, 'gif', None) or mime == 'video/mp4' and 'animated' in str(self.msg.media).lower():
+                icon_emoji = "🎞️"
+            elif mime in ["application/zip", "application/x-rar-compressed", "application/x-7z-compressed"]:
+                icon_emoji = "📦"
+            elif getattr(self.msg, 'web_preview', None):
+                icon_emoji = "🔗"
             
         self.lbl_icon.setText(icon_emoji)
         layout.addWidget(self.lbl_icon)
@@ -70,7 +79,9 @@ class SelectableMediaRow(QWidget):
 
         # Better size detection for ALL media types
         msg_size = 0
-        if getattr(self.msg, 'file', None):
+        if getattr(self.msg, 'is_mock', False):
+            msg_size = getattr(self.msg, 'size', 0)
+        elif getattr(self.msg, 'file', None):
             msg_size = self.msg.file.size
         elif getattr(self.msg, 'document', None):
             msg_size = self.msg.document.size
@@ -91,9 +102,11 @@ class SelectableMediaRow(QWidget):
         
         # Prioritize filename over caption for clearer identification
         title_text = ""
-        if getattr(self.msg, 'file', None) and getattr(self.msg.file, 'name', None):
+        if getattr(self.msg, 'is_mock', False):
+            title_text = getattr(self.msg, 'message', '')
+        elif getattr(self.msg, 'file', None) and getattr(self.msg.file, 'name', None):
             title_text = self.msg.file.name
-        elif self.msg.message:
+        elif getattr(self.msg, 'message', None):
             title_text = self.msg.message.replace('\n', ' ').strip()
         
         if not title_text:
@@ -409,11 +422,7 @@ class MediaBrowserDialog(QDialog):
 
     def toggle_filters_area(self, checked):
         self.filters_area.setVisible(checked)
-        # Ensure the dialog adjusts its size dynamically, optimized for 768p
-        if checked:
-            self.setMinimumHeight(650) 
-        else:
-            self.setMinimumHeight(480)
+        # We allow it to size dynamically without forcing a rigid pixel boundary which helps on 768p
         self.adjustSize()
 
     def reset_filters(self):
@@ -465,7 +474,17 @@ class MediaBrowserDialog(QDialog):
                         
                 # 3. Date Range
                 if visible:
-                    m_date = msg.date.date() if hasattr(msg, 'date') else None
+                    m_date = None
+                    raw_date = getattr(msg, 'date', None)
+                    if isinstance(raw_date, str) and len(raw_date) >= 10:
+                        try:
+                            from datetime import datetime
+                            m_date = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
+                        except: pass
+                    elif raw_date:
+                        try: m_date = raw_date.date()
+                        except: pass
+                        
                     if m_date:
                         if m_date < start_date or m_date > end_date:
                             visible = False

@@ -124,6 +124,12 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Changelog
 
+### v2.6.1
+- 🛠️ **Refined Instant Loading:** Improved cached media UI mapping to show exact file sizes and dynamic emojis without visual lag.
+- 🛑 **Robust Background Fetching:** Fixed Telethon's internal "closed the connection" drops by pacing parallel chunk streams more smoothly.
+- ⚡ **Resilient Resuming:** Solved a critical file-resumption bug by accurately instructing the download engine via explicit pathing, preventing offset overrides and 0-byte restarts.
+- 🎨 **Responsive UX:** Instant loading indications are now immediately flushed to the UI queue for zero perceived wait time during database queries.
+
 ### v2.6.0
 - 🗄️ **SQLite Persistence Engine** — transitioned from legacy JSON files to a robust, indexed SQLite database for all tasks and download history.
 - 🚀 **Instant Media Browser** — introduced high-performance content caching. Browse previously fetched media instantly while the app refreshes in the background.
@@ -208,7 +214,9 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Roadmap
 
-Future improvements are tracked as [GitHub Issues](https://github.com/vinodkr494/telegram-media-downloader/issues). Have an idea? Open a feature request!
+We are currently focused entirely on stabilizing and improving the robustness of existing features.
+
+If you have an idea or suggestion for a new feature, please join our [GitHub Discussions (Ideas)](https://github.com/vinodkr494/telegram-media-downloader/discussions/categories/ideas) instead of opening an issue. Issues are now strictly reserved for bug reports.
 
 ## ⚠️ Legal Disclaimer
 

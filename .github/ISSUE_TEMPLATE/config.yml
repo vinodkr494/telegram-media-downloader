@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💡 Have an idea for a new feature?
+    url: https://github.com/vinodkr494/telegram-media-downloader/discussions/categories/ideas
+    about: We are currently focused on stabilizing existing features. Please post all your feature requests and ideas in the GitHub Discussions section!
+  - name: 🐛 Report a Bug
+    url: https://github.com/vinodkr494/telegram-media-downloader/issues/new
+    about: Create a bug report to help us improve the reliability and robustness of the existing app.
