@@ -53,7 +53,15 @@ Context menus (Right-Click) now dynamically adopt the application's theme, provi
 </p>
 
 <p align="center">
-  <img src="screenshots/screenshot_v2.4.1/after_login_v2.4.1.png" width="800" alt="Home View">
+  <img src="screenshots/screenshot_v2.6.2/home_v2.6.2.png" width="800" alt="Home View">
+</p>
+
+<p align="center">
+  <img src="screenshots/screenshot_v2.6.2/download_queue_v2.6.2.png" width="800" alt="Download Queue">
+</p>
+
+<p align="center">
+  <img src="screenshots/screenshot_v2.6.2/settings_v2.6.2.png" width="800" alt="Settings View">
 </p>
 
 ---
@@ -124,7 +132,7 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Changelog
 
-### v2.6.1
+### v2.6.2
 - 🛠️ **Refined Instant Loading:** Improved cached media UI mapping to show exact file sizes and dynamic emojis without visual lag.
 - 🛑 **Robust Background Fetching:** Fixed Telethon's internal "closed the connection" drops by pacing parallel chunk streams more smoothly.
 - ⚡ **Resilient Resuming:** Solved a critical file-resumption bug by accurately instructing the download engine via explicit pathing, preventing offset overrides and 0-byte restarts.

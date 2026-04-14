@@ -347,7 +347,16 @@ class TelegramWorker(QThread):
             except: pass
             downloaded_state = load_download_state(resolved_peer_id)
 
-            title = channel.title or f"Channel ID: {channel.id}"
+            # Safely get a display name for the entity (Channel, Chat, or User)
+            title = getattr(channel, 'title', None)
+            if not title:
+                first = getattr(channel, 'first_name', '') or ''
+                last = getattr(channel, 'last_name', '') or ''
+                title = f"{first} {last}".strip()
+            if not title:
+                title = getattr(channel, 'username', None)
+            if not title:
+                title = f"Channel ID: {getattr(channel, 'id', 'Unknown')}"
             
             # 1. Update active_tasks.json to use the numeric ID for future persistence
             try:
@@ -431,7 +440,7 @@ class TelegramWorker(QThread):
             if "{" not in template:
                 template = os.path.join(template, "{channel}", "{category}")
             
-            safe_title = "".join([c if c.isalnum() or c in (' ', '-', '_') else '_' for c in (channel.title or str(channel.id))])
+            safe_title = "".join([c if c.isalnum() or c in (' ', '-', '_') else '_' for c in title])
             
             folder_name = template.format(
                 channel=safe_title,

@@ -597,7 +597,16 @@ class MainWindow(QMainWindow):
         if not channel_obj:
             title = str(channel_input)
         else:
-            title = getattr(channel_obj, 'title', str(channel_obj.id))
+            title = getattr(channel_obj, 'title', None)
+            if not title:
+                first = getattr(channel_obj, 'first_name', '') or ''
+                last = getattr(channel_obj, 'last_name', '') or ''
+                title = f"{first} {last}".strip()
+            if not title:
+                title = getattr(channel_obj, 'username', None)
+            if not title:
+                title = getattr(channel_obj, 'id', str(channel_input))
+            title = str(title)
         
         # 🌙 Theme Support
         from ui.views.settings_view import load_config
