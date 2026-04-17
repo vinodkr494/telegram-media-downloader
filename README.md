@@ -53,15 +53,15 @@ Context menus (Right-Click) now dynamically adopt the application's theme, provi
 </p>
 
 <p align="center">
-  <img src="screenshots/screenshot_v2.6.2/home_v2.6.2.png" width="800" alt="Home View">
+  <img src="screenshots/screenshot_v2.6.3/home_v2.6.3.png" width="800" alt="Home View">
 </p>
 
 <p align="center">
-  <img src="screenshots/screenshot_v2.6.2/download_queue_v2.6.2.png" width="800" alt="Download Queue">
+  <img src="screenshots/screenshot_v2.6.3/download_queue_v2.6.3.png" width="800" alt="Download Queue">
 </p>
 
 <p align="center">
-  <img src="screenshots/screenshot_v2.6.2/settings_v2.6.2.png" width="800" alt="Settings View">
+  <img src="screenshots/screenshot_v2.6.3/settings_v2.6.3.png" width="800" alt="Settings View">
 </p>
 
 ---
@@ -131,6 +131,10 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 ---
 
 ## Changelog
+
+### v2.6.3
+- 🛠️ **Fixed Photo Download Bug**: Resolved the critical `AttributeError: 'PhotoSize' object has no attribute 'location'` that prevented image downloads in Telethon 1.38.1.
+- 🛡️ **Robust Fallback Engine**: Implemented a multi-strategy download system for photos to handle Telegram API layer regressions across different versions.
 
 ### v2.6.2
 - 🛠️ **Refined Instant Loading:** Improved cached media UI mapping to show exact file sizes and dynamic emojis without visual lag.

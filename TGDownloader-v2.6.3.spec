@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='TGDownloader-v2.6.2',
+    name='TGDownloader-v2.6.3',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

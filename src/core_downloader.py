@@ -196,39 +196,54 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                 if complete_cb: complete_cb(message.id, paused=True, filepath=None)
                 return
             except AttributeError as attr_err:
+                # Fallback for Telethon 1.38.x PhotoSize bug ('PhotoSize' object has no attribute 'location')
                 if "location" in str(attr_err) and getattr(message, 'photo', None):
-                    # Fallback for Telethon 1.38.x PhotoSize bug
-                    from telethon.tl.types import InputPhotoFileLocation
-                    photo = message.photo
-                    # Pick largest size that isn't empty
-                    best_size = None
-                    if photo.sizes:
-                        # Just grab the last one that has a type
-                        for sz in reversed(photo.sizes):
-                            if hasattr(sz, 'type'):
-                                best_size = sz
-                                break
-                    
-                    if best_size:
-                        loc = InputPhotoFileLocation(
-                            id=photo.id,
-                            access_hash=photo.access_hash,
-                            file_reference=photo.file_reference,
-                            thumb_size=best_size.type
+                    try:
+                        # Strategy 1: Download the photo object directly (higher level, often bypasses the bug)
+                        file_path = await client.download_media(
+                            message.photo,
+                            file=target_path,
+                            progress_callback=internal_progress
                         )
-                        fname = f"Photo_{message.id}.jpg"
-                        file_path = os.path.join(folder_name, fname)
-                        try:
-                            await client.download_file(
-                                loc,
-                                file=file_path,
-                                progress_callback=internal_progress,
+                    except Exception as e2:
+                        # Strategy 2: Manual construction of InputPhotoFileLocation (lowest level)
+                        from telethon.tl.types import InputPhotoFileLocation
+                        photo = message.photo
+                        best_size = None
+                        if photo.sizes:
+                            for sz in reversed(photo.sizes):
+                                if hasattr(sz, 'type'):
+                                    best_size = sz
+                                    break
+                        
+                        if best_size:
+                            loc = InputPhotoFileLocation(
+                                id=photo.id,
+                                access_hash=photo.access_hash,
+                                file_reference=photo.file_reference,
+                                thumb_size=best_size.type
                             )
-                        except PauseRequested:
-                            if complete_cb: complete_cb(message.id, paused=True, filepath=None)
-                            return
-                    else: raise
-                else: raise
+                            # If target_path is a directory, specify a filename
+                            final_target = target_path
+                            if os.path.isdir(final_target):
+                                final_target = os.path.join(final_target, f"Photo_{message.id}.jpg")
+                            
+                            try:
+                                file_path = await client.download_file(
+                                    loc,
+                                    file=final_target,
+                                    progress_callback=internal_progress,
+                                )
+                            except PauseRequested:
+                                if complete_cb: complete_cb(message.id, paused=True, filepath=None)
+                                return
+                            except Exception as e3:
+                                # If both fail, we re-raise the original error to allow retry logic to take over
+                                raise attr_err
+                        else:
+                            raise attr_err
+                else:
+                    raise attr_err
 
             if complete_cb:
                 complete_cb(message.id, filepath=file_path)
