@@ -40,6 +40,38 @@ def save_download_state(state):
     # We recommend using mark_media_completed instead.
     pass
 
+def parse_channel_input(channel_input):
+    """
+    Parses channel input which might contain a topic ID in 'channelID_topicID' format
+    or a Telegram URL with a topic ID (e.g., t.me/c/123456789/1).
+    Returns (clean_channel_input, topic_id).
+    """
+    s = str(channel_input).strip()
+    
+    # 1. Handle URL format: https://t.me/c/123456789/1
+    if "t.me/c/" in s:
+        try:
+            # Extract the part after /c/
+            parts = s.split("t.me/c/")[-1].split("/")
+            if len(parts) >= 2:
+                chan_id = parts[0]
+                topic_id = parts[1]
+                if topic_id.isdigit():
+                    # Prefix with -100 if it's a numeric ID
+                    if chan_id.isdigit() and not chan_id.startswith("-"):
+                        chan_id = f"-100{chan_id}"
+                    return chan_id, int(topic_id)
+        except: pass
+
+    # 2. Handle ID_topicID format: -100123456789_123
+    if "_" in s:
+        parts = s.rsplit("_", 1)
+        if len(parts) == 2 and parts[1].isdigit():
+            # Basic validation that parts[0] looks like a channel ID or username
+            return parts[0], int(parts[1])
+            
+    return s, None
+
 async def fetch_channel(client, channel_input):
     """
     Fetch a channel by username or ID.
@@ -67,6 +99,8 @@ async def fetch_channel(client, channel_input):
     try:
         # First attempt: direct get_entity
         channel = await client.get_entity(channel_input)
+        title = getattr(channel, 'title', getattr(channel, 'username', getattr(channel, 'first_name', 'Unknown')))
+        print(f"DEBUG: Successfully resolved channel/entity: '{title}' (ID: {channel.id})")
         return channel
     except Exception as e:
         # Second attempt: if direct lookup fails (common for private entities),
@@ -304,7 +338,7 @@ async def download_in_batches_headless(client, channel, messages, folder_name, b
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)
 
-async def get_messages_by_type(client, channel, media_choice, min_id=None, max_id=None, limit=2000):
+async def get_messages_by_type(client, channel, media_choice, min_id=None, max_id=None, limit=2000, topic_id=None):
     """
     media_choice: 
     1 - Images
@@ -328,6 +362,7 @@ async def get_messages_by_type(client, channel, media_choice, min_id=None, max_i
     if filter_type: kwargs["filter"] = filter_type
     if min_id: kwargs["min_id"] = min_id
     if max_id: kwargs["max_id"] = max_id
+    if topic_id: kwargs["reply_to"] = topic_id
 
     messages = await client.get_messages(channel, **kwargs)
     
@@ -341,11 +376,13 @@ async def get_messages_by_type(client, channel, media_choice, min_id=None, max_i
         
     return messages
 
-async def fetch_categorized_media(client, channel, limit=500):
+async def fetch_categorized_media(client, channel, limit=500, topic_id=None):
     """
     Fetches up to `limit` messages for each distinct media category IN PARALLEL.
     Now uses a semaphore to prevent "Server closed the connection" errors and includes retries.
     """
+    if topic_id:
+        print(f"DEBUG: fetch_categorized_media using topic_id={topic_id}")
     # 🛡️ Limit concurrency to 1 simultaneous request to prevent Telegram from forcefully dropping connections
     sem = asyncio.Semaphore(1)
     
@@ -353,7 +390,10 @@ async def fetch_categorized_media(client, channel, limit=500):
         async with sem:
             for attempt in range(3):
                 try:
-                    return await client.get_messages(channel, filter=filter_type, limit=limit_val)
+                    kwargs = {}
+                    if filter_type: kwargs['filter'] = filter_type
+                    if topic_id is not None: kwargs['reply_to'] = topic_id
+                    return await client.get_messages(channel, limit=limit_val, **kwargs)
                 except Exception as e:
                     if "closed the connection" in str(e).lower() and attempt < 2:
                         await asyncio.sleep(1) # Wait a bit before retry
@@ -362,7 +402,7 @@ async def fetch_categorized_media(client, channel, limit=500):
 
     try:
         # Fetch fresh data from Telegram
-        (photos, videos, round_vids, docs, music, voice, links, gifs, all_msgs) = await asyncio.gather(
+        (photos, videos, round_vids, docs, music, voice, links, gifs, all_msgs, topic_ref) = await asyncio.gather(
             get_messages_with_sem(InputMessagesFilterPhotos()),
             get_messages_with_sem(InputMessagesFilterVideo()),
             get_messages_with_sem(InputMessagesFilterRoundVideo()),
@@ -371,9 +411,17 @@ async def fetch_categorized_media(client, channel, limit=500):
             get_messages_with_sem(InputMessagesFilterVoice()),
             get_messages_with_sem(InputMessagesFilterUrl()),
             get_messages_with_sem(InputMessagesFilterGif()),
-            get_messages_with_sem(limit_val=limit) # Base feed
+            get_messages_with_sem(limit_val=limit), # Base feed
+            get_messages_with_sem(limit_val=1) # Reference message for topic title if possible
         )
         
+        # If we have a topic_id, try to get the topic title from the first message
+        topic_title = None
+        if topic_id and all_msgs:
+            # In Telethon, forum topics are technically replies.
+            # We can try to fetch the service message that created the topic or just use one message.
+            pass
+
         # 🗄️ CACHE RESULTS IN SQLite for faster tab switching
         from telethon.utils import get_peer_id
         try:

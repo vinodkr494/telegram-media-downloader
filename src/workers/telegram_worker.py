@@ -13,7 +13,8 @@ from core_downloader import (
     get_messages_by_type,
     download_in_batches_headless,
     load_active_tasks,
-    save_active_tasks
+    save_active_tasks,
+    parse_channel_input
 )
 from resource_utils import get_project_root
 
@@ -193,11 +194,13 @@ class TelegramWorker(QThread):
 
     async def _fetch_media_list_coro(self, channel_input):
         try:
-            channel = await fetch_channel(self.client, channel_input)
+            clean_input, topic_id = parse_channel_input(channel_input)
+            print(f"DEBUG: Fetching media list for input='{channel_input}' -> clean='{clean_input}', topic='{topic_id}'")
+            channel = await fetch_channel(self.client, clean_input)
             
             # Fetch all types for the modal using centralized logic
             from core_downloader import fetch_categorized_media
-            messages_dict = await fetch_categorized_media(self.client, channel)
+            messages_dict = await fetch_categorized_media(self.client, channel, topic_id=topic_id)
             
             # Normalize keys to lowercase for UI compatibility if needed, 
             # though we can just update UI to use these keys.
@@ -213,19 +216,25 @@ class TelegramWorker(QThread):
         tasks = load_active_tasks()
         found = False
         found_task = None
-        ch_clean = str(channel_input or "").replace("-100", "", 1)
+        
+        clean_input, topic_id = parse_channel_input(channel_input)
+        print(f"DEBUG: Starting download for input='{channel_input}' -> clean='{clean_input}', topic='{topic_id}', media='{media_id}'")
+        ch_clean = str(clean_input or "").replace("-100", "", 1)
         for t in tasks:
             if not isinstance(t, dict): continue
             # Match by explicit ID or by the same rule we use to generate task_id
             tk_chan = str(t.get("channel_input", "")).replace("-100", "", 1)
             tk_media = t.get("media_id")
-            generated_id = f"{tk_chan}_{tk_media}"
+            tk_topic = t.get("topic_id")
+            
+            # Reconstruct ID for comparison
+            generated_id = f"{tk_chan}_{tk_topic}_{tk_media}" if tk_topic else f"{tk_chan}_{tk_media}"
             
             if task_id == generated_id or (task_id and t.get("task_id") == task_id):
                 found_task = t
                 break
             
-            if not task_id and tk_chan == ch_clean and tk_media == media_id:
+            if not task_id and tk_chan == ch_clean and tk_media == media_id and tk_topic == topic_id:
                 found_task = t
                 break
         
@@ -239,25 +248,27 @@ class TelegramWorker(QThread):
             if selected_message_ids is not None:
                 t["selected_message_ids"] = selected_message_ids
                 t["total_items"] = len(selected_message_ids)
+                t["topic_id"] = topic_id # Ensure topic_id is updated
             else:
                 selected_message_ids = t.get("selected_message_ids")
         if not bool(found_task):
             tasks.append({
-                "channel_input": channel_input,
+                "channel_input": clean_input,
                 "media_id": media_id,
+                "topic_id": topic_id,
                 "paused": is_paused,
                 "download_path": download_path,
                 "download_limit": download_limit,
                 "max_speed_kb": max_speed_kb,
                 "selected_message_ids": selected_message_ids,
-                "title": f"Channel: {channel_input}", # Placeholder
+                "title": f"Channel: {clean_input}", # Placeholder
                 "total_items": len(selected_message_ids) if selected_message_ids else 0
             })
         save_active_tasks(tasks)
 
         # 🛡️ Prevent duplicate/competing loops for the same task
         # We start with the input-based ID as a temporary key
-        actual_task_id = task_id or f"{ch_clean}_{media_id}"
+        actual_task_id = task_id or (f"{ch_clean}_{topic_id}_{media_id}" if topic_id else f"{ch_clean}_{media_id}")
         if actual_task_id in self.running_tasks:
             # We must be careful not to cancel the same task we JUST scheduled if this is called very rapidly,
             # but usually start_download is user-triggered.
@@ -278,13 +289,23 @@ class TelegramWorker(QThread):
             self.loop.call_soon_threadsafe(event.set)
             
         try:
-            channel_input, media_id_str = task_id.rsplit('_', 1)
+            parts = task_id.split('_')
+            if len(parts) == 3:
+                ch_id, topic_id_str, media_id_str = parts
+                topic_id = int(topic_id_str)
+            else:
+                ch_id, media_id_str = parts
+                topic_id = None
+                
             media_id = int(media_id_str)
-            ch_clean = channel_input.replace("-100", "", 1)
+            ch_clean = ch_id.replace("-100", "", 1)
             tasks = load_active_tasks()
             for t in tasks:
                 tk_chan = str(t.get("channel_input")).replace("-100", "", 1)
-                if tk_chan == ch_clean and t.get("media_id") == media_id:
+                tk_media = t.get("media_id")
+                tk_topic = t.get("topic_id")
+                
+                if tk_chan == ch_clean and tk_media == media_id and tk_topic == topic_id:
                     t["paused"] = True
                     break
             save_active_tasks(tasks)
@@ -301,14 +322,24 @@ class TelegramWorker(QThread):
             del self.task_cancel_events[task_id]
             
         try:
-            channel_input, media_id_str = task_id.rsplit('_', 1)
+            parts = task_id.split('_')
+            if len(parts) == 3:
+                ch_id, topic_id_str, media_id_str = parts
+                topic_id = int(topic_id_str)
+            else:
+                ch_id, media_id_str = parts
+                topic_id = None
+                
             media_id = int(media_id_str)
-            ch_clean = channel_input.replace("-100", "", 1)
+            ch_clean = ch_id.replace("-100", "", 1)
             tasks = load_active_tasks()
             new_tasks = []
             for t in tasks:
                 tk_chan = str(t.get("channel_input")).replace("-100", "", 1)
-                if tk_chan == ch_clean and t.get("media_id") == media_id:
+                tk_media = t.get("media_id")
+                tk_topic = t.get("topic_id")
+                
+                if tk_chan == ch_clean and tk_media == media_id and tk_topic == topic_id:
                     continue
                 new_tasks.append(t)
             save_active_tasks(new_tasks)
@@ -317,13 +348,15 @@ class TelegramWorker(QThread):
 
     async def _download_coro(self, channel_input, media_id, download_path, download_limit, max_speed_kb, is_paused, selected_message_ids, original_task_id=None):
         try:
-            channel = await fetch_channel(self.client, channel_input)
+            clean_input, topic_id = parse_channel_input(channel_input)
+            print(f"DEBUG: Download Coro for input='{channel_input}' -> clean='{clean_input}', topic='{topic_id}'")
+            channel = await fetch_channel(self.client, clean_input)
             # Use the canonical numeric ID for task identification once resolved.
             # IN TELETHON: PeerChannel, PeerChat, and PeerUser have raw IDs. 
             # For channels, we must include the -100 prefix for stable global IDs.
             from telethon.utils import get_peer_id
             resolved_chan_id = str(get_peer_id(channel))
-            task_id = f"{resolved_chan_id}_{media_id}"
+            task_id = f"{resolved_chan_id}_{topic_id}_{media_id}" if topic_id else f"{resolved_chan_id}_{media_id}"
             
             # 🛡️ ID HIJACK: If we were started with a username/title, switch the tracker to use the numeric ID
             if original_task_id and original_task_id != task_id:
@@ -356,7 +389,11 @@ class TelegramWorker(QThread):
             if not title:
                 title = getattr(channel, 'username', None)
             if not title:
-                title = f"Channel ID: {getattr(channel, 'id', 'Unknown')}"
+                title = f"Topic ID: {topic_id}" if topic_id else f"Channel ID: {getattr(channel, 'id', 'Unknown')}"
+            
+            # If it's a topic, append that to the title
+            if topic_id:
+                title = f"{title} (Topic: {topic_id})"
             
             # 1. Update active_tasks.json to use the numeric ID for future persistence
             try:
@@ -370,7 +407,7 @@ class TelegramWorker(QThread):
                     tk_chan_raw = str(tk.get("channel_input"))
                     tk_chan_clean = tk_chan_raw.replace("-100", "", 1) if tk_chan_raw.startswith("-100") else tk_chan_raw
                     # If this is the task we just resolved (either by input string or numeric ID)
-                    if tk.get("media_id") == media_id:
+                    if tk.get("media_id") == media_id and tk.get("topic_id") == topic_id:
                         # Match either by exact string OR by clean ID equivalence
                         if tk_chan_raw == str(channel_input) or tk_chan_clean == ch_resolved_clean:
                             match = True
@@ -388,6 +425,7 @@ class TelegramWorker(QThread):
                     updated_tasks.append({
                         "channel_input": resolved_chan_id,
                         "media_id": media_id,
+                        "topic_id": topic_id,
                         "paused": is_paused,
                         "download_path": download_path,
                         "download_limit": download_limit,
@@ -416,7 +454,7 @@ class TelegramWorker(QThread):
             }, 0)
 
             # 3. Fetch real messages (this takes time)
-            messages = await get_messages_by_type(self.client, channel, media_id)
+            messages = await get_messages_by_type(self.client, channel, media_id, topic_id=topic_id)
             
             # Filter if specific messages were selected
             if selected_message_ids is not None:
@@ -429,6 +467,8 @@ class TelegramWorker(QThread):
             
             base_folder_map = {1: "images", 2: "videos", 3: "pdfs", 4: "zips", 5: "audio", 6: "all_media"}
             category_name = base_folder_map.get(media_id, "all_media")
+            if topic_id:
+                category_name = os.path.join(category_name, f"topic_{topic_id}")
             
             # 📂 Dynamic Path Templating
             # Supported: {channel}, {category}, {year}, {month}, {day}
@@ -478,7 +518,7 @@ class TelegramWorker(QThread):
                 tasks = load_active_tasks()
                 for tk in tasks:
                     tk_chan_clean = str(tk.get("channel_input")).replace("-100", "", 1)
-                    if tk_chan_clean == resolved_chan_id.replace("-100", "", 1) and tk.get("media_id") == media_id:
+                    if tk_chan_clean == resolved_chan_id.replace("-100", "", 1) and tk.get("media_id") == media_id and tk.get("topic_id") == topic_id:
                         tk["title"] = title
                         tk["total_items"] = total_items
                         tk["folder_name"] = folder_name
@@ -529,6 +569,7 @@ class TelegramWorker(QThread):
                 "download_path": download_path,
                 "download_limit": download_limit,
                 "max_speed_kb": max_speed_kb,
+                "topic_id": topic_id,
                 "files_metadata": files_metadata
             }, total_items)
             
@@ -563,7 +604,7 @@ class TelegramWorker(QThread):
                         # Remove from active tasks using the stable numeric ID
                         try:
                             tkList = load_active_tasks()
-                            tkList = [tk for tk in tkList if not (str(tk.get("channel_input")) == resolved_chan_id and tk.get("media_id") == media_id)]
+                            tkList = [tk for tk in tkList if not (str(tk.get("channel_input")) == resolved_chan_id and tk.get("media_id") == media_id and tk.get("topic_id") == topic_id)]
                             save_active_tasks(tkList)
                         except Exception as e:
                             print(f"Error removing task: {e}")

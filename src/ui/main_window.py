@@ -333,7 +333,7 @@ class MainWindow(QMainWindow):
         search_input_layout.addWidget(self.input_channel, stretch=1)
         search_input_layout.addWidget(self.btn_fetch)
         
-        lbl_hint = QLabel("Tip: enter @username, https://t.me/username, or the numeric channel ID")
+        lbl_hint = QLabel("Tip: enter @username, https://t.me/username, numeric channel ID, or channelID_topicID")
         lbl_hint.setObjectName("MutedText")
         lbl_hint.setWordWrap(True)
         
@@ -717,8 +717,11 @@ class MainWindow(QMainWindow):
         self.card_widgets[task_id] = card
         self.page_queue.set_controls_visible(True)
         
-        # Connect reselect signal
+        # Connect signals
         card.reselectRequested.connect(self.reselect_task_media)
+        card.removeRequested.connect(self.remove_task)
+        card.moveUpRequested.connect(self.move_task_up)
+        card.moveDownRequested.connect(self.move_task_down)
 
     def move_card(self, card, direction):
         """direction: -1 (up), 1 (down)"""
@@ -795,8 +798,20 @@ class MainWindow(QMainWindow):
             # 2. Remove from worker tracking & files
             from core_downloader import load_active_tasks, save_active_tasks
             tasks = load_active_tasks()
-            tasks = [t for t in tasks if f"{t.get('channel_input')}_{t.get('media_id')}" != task_id]
-            save_active_tasks(tasks)
+            
+            # Reconstruct the logic to match the actual task data structure
+            new_tasks = []
+            for t in tasks:
+                tk_chan = str(t.get("channel_input")).replace("-100", "", 1)
+                tk_media = t.get("media_id")
+                tk_topic = t.get("topic_id")
+                # Construct the ID the same way we do in the worker for comparison
+                gen_id = f"{tk_chan}_{tk_topic}_{tk_media}" if tk_topic else f"{tk_chan}_{tk_media}"
+                # Handle the -100 prefix in task_id parameter too
+                clean_tid = str(task_id).replace("-100", "", 1)
+                if gen_id != clean_tid:
+                    new_tasks.append(t)
+            save_active_tasks(new_tasks)
             # 3. Final cleanup from UI
             card.deleteLater()
             del self.card_widgets[task_id]

@@ -132,6 +132,11 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Changelog
 
+### v2.6.4
+- 🧵 **Forum Topic Support**: Full support for downloading from specific Telegram forum topics and sub-channels using the `channelID_topicID` format or direct topic URLs.
+- 🐞 **Parse Engine Fixes**: Enhanced task ID management and parsing logic to seamlessly pause and resume topic-scoped tasks.
+- 🛡️ **GetRepliesRequest Fix**: Refactored `client.get_messages` implementation to prevent API crashes when querying default message feeds.
+
 ### v2.6.3
 - 🛠️ **Fixed Photo Download Bug**: Resolved the critical `AttributeError: 'PhotoSize' object has no attribute 'location'` that prevented image downloads in Telethon 1.38.1.
 - 🛡️ **Robust Fallback Engine**: Implemented a multi-strategy download system for photos to handle Telegram API layer regressions across different versions.

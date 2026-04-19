@@ -41,6 +41,6 @@ This document tracks the vision and high-level goals for the major **v3.0.0** re
 ---
 
 ## ✅ Progress Summary
-- **Current Version**: 2.6.3
+- **Current Version**: 2.6.4
 - **Next Milestone**: 2.7.0 (Cleanup & Refactor)
 - **Primary Goal**: 3.0.0 (The Media Operating System)

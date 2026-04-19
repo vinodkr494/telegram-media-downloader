@@ -33,9 +33,9 @@ class DownloadCard(QWidget):
         self.connect_buttons()
 
     def connect_buttons(self):
-        self.btn_trash.clicked.connect(lambda: self.removeRequested.emit(self.task_id))
-        self.btn_up.clicked.connect(lambda: self.moveUpRequested.emit(self.task_id))
-        self.btn_down.clicked.connect(lambda: self.moveDownRequested.emit(self.task_id))
+        self.btn_trash.clicked.connect(lambda checked=False: self.removeRequested.emit(self.task_id))
+        self.btn_up.clicked.connect(lambda checked=False: self.moveUpRequested.emit(self.task_id))
+        self.btn_down.clicked.connect(lambda checked=False: self.moveDownRequested.emit(self.task_id))
 
     removeRequested = Signal(str)
     moveUpRequested = Signal(str)
@@ -139,7 +139,7 @@ class DownloadCard(QWidget):
         self.btn_reselect = QPushButton("🔄 Re-select")
         self.btn_reselect.setObjectName("CardButton")
         self.btn_reselect.setToolTip("Add or remove files for this specific task")
-        self.btn_reselect.clicked.connect(lambda: self.reselectRequested.emit(self.task_id))
+        self.btn_reselect.clicked.connect(lambda checked=False: self.reselectRequested.emit(self.task_id))
 
         ar.addWidget(self.btn_pause)
         ar.addWidget(self.btn_folder)
@@ -348,12 +348,20 @@ class DownloadCard(QWidget):
             self.lbl_status_text.setProperty("state", "paused")
             self.batch_progress_bar.setProperty("state", "paused")
         else:
-            channel_input, media_id_str = self.task_id.rsplit('_', 1)
-            media_id = int(media_id_str)
+            parts = self.task_id.split('_')
+            topic_id = None
+            if len(parts) == 3:
+                channel_input, topic_id_str, media_id_str = parts
+                channel_input = f"{channel_input}_{topic_id_str}"
+                media_id = int(media_id_str)
+            else:
+                channel_input, media_id_str = parts
+                media_id = int(media_id_str)
+                
             self.parent_worker.start_download(
                 channel_input=channel_input, media_id=media_id,
                 download_path=self.download_path, download_limit=self.download_limit,
-                max_speed_kb=self.max_speed_kb)
+                max_speed_kb=self.max_speed_kb, task_id=self.task_id)
             self.btn_pause.setText("⏸ Pause")
             self.lbl_status_text.setText("Downloading…")
             self.lbl_status_text.setProperty("state", "active")
