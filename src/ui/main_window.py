@@ -77,8 +77,12 @@ class MainWindow(QMainWindow):
             <li>🗄️ <b>SQLite Persistence:</b> Robust, crash-proof active queues.</li>
         </ul>
         <hr/>
-        <p>Enjoying the app? Consider supporting development by starring our repository!</p>
-        <p><a href='https://github.com/vinodkr494/telegram-media-downloader' style='color: #FFC107; font-weight: bold; font-size: 14px;'>⭐ Star on GitHub</a></p>
+        <p>Enjoying the app? Consider supporting development by starring our repository or sponsoring!</p>
+        <p>
+            <a href='https://github.com/vinodkr494/telegram-media-downloader' style='color: #FFC107; font-weight: bold; font-size: 14px;'>⭐ Star on GitHub</a>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            <a href='https://github.com/sponsors/vinodkr494' style='color: #EF4444; font-weight: bold; font-size: 14px;'>❤️ Sponsor & Donate</a>
+        </p>
         <br/>
         <p style='font-size: 10px; color: #888;'>&copy; 2026 Vinodkr494. Licensed under MIT.</p>
         """
