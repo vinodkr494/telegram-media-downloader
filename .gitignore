@@ -17,3 +17,5 @@ downloader.db
 *.db-journal
 *.bak
 config.json
+dist/
+build

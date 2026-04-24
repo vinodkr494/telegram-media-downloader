@@ -376,11 +376,17 @@ async def get_messages_by_type(client, channel, media_choice, min_id=None, max_i
         
     return messages
 
-async def fetch_categorized_media(client, channel, limit=500, topic_id=None):
+async def fetch_categorized_media(client, channel, limit=None, topic_id=None):
     """
     Fetches up to `limit` messages for each distinct media category IN PARALLEL.
     Now uses a semaphore to prevent "Server closed the connection" errors and includes retries.
     """
+    if limit is None:
+        try:
+            limit = int(os.getenv('FETCH_LIMIT', 500))
+        except:
+            limit = 500
+            
     if topic_id:
         print(f"DEBUG: fetch_categorized_media using topic_id={topic_id}")
     # 🛡️ Limit concurrency to 1 simultaneous request to prevent Telegram from forcefully dropping connections

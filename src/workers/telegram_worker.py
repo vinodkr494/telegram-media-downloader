@@ -188,19 +188,19 @@ class TelegramWorker(QThread):
     # -------------------------------------------------------------------------
     # DOWNLOADS
     # -------------------------------------------------------------------------
-    def fetch_media_list(self, channel_input):
+    def fetch_media_list(self, channel_input, limit=None):
         """Called from Main UI to just fetch and group the messages for the modal."""
-        asyncio.run_coroutine_threadsafe(self._fetch_media_list_coro(channel_input), self.loop)
+        asyncio.run_coroutine_threadsafe(self._fetch_media_list_coro(channel_input, limit), self.loop)
 
-    async def _fetch_media_list_coro(self, channel_input):
+    async def _fetch_media_list_coro(self, channel_input, limit=None):
         try:
             clean_input, topic_id = parse_channel_input(channel_input)
-            print(f"DEBUG: Fetching media list for input='{channel_input}' -> clean='{clean_input}', topic='{topic_id}'")
+            print(f"DEBUG: Fetching media list for input='{channel_input}' -> clean='{clean_input}', topic='{topic_id}', limit='{limit}'")
             channel = await fetch_channel(self.client, clean_input)
             
             # Fetch all types for the modal using centralized logic
             from core_downloader import fetch_categorized_media
-            messages_dict = await fetch_categorized_media(self.client, channel, topic_id=topic_id)
+            messages_dict = await fetch_categorized_media(self.client, channel, limit=limit, topic_id=topic_id)
             
             # Normalize keys to lowercase for UI compatibility if needed, 
             # though we can just update UI to use these keys.

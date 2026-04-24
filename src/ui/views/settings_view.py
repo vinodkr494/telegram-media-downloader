@@ -15,6 +15,7 @@ def load_config():
     default_config = {
         "download_path": "downloads",
         "download_limit": 5,
+        "initial_fetch_limit": 500,
         "max_speed_kb": 0,
         "dark_mode": None,  # None = follow Windows system setting
         "proxy": {
@@ -190,9 +191,16 @@ class SettingsView(QWidget):
         self.spin_speed.setRange(0, 999999)
         self.spin_speed.setFixedHeight(30)
         limit_grid.addWidget(self.spin_speed, 1, 1)
+
+        limit_grid.addWidget(QLabel("Initial Media Fetch Limit (per type):", objectName="ControlLabel"), 2, 0)
+        self.spin_fetch_limit = QSpinBox()
+        self.spin_fetch_limit.setRange(10, 50000)
+        self.spin_fetch_limit.setFixedHeight(30)
+        limit_grid.addWidget(self.spin_fetch_limit, 2, 1)
         
         self.clayout.addLayout(limit_grid)
         self.clayout.addWidget(QLabel("Set 0 for unlimited speed. Using higher concurrency index may lead to better speeds but uses more resources.", objectName="MutedText"))
+        self.clayout.addWidget(QLabel("The Initial Fetch Limit controls how many recent items are scanned when searching for a channel.", objectName="MutedText"))
 
         self.clayout.addStretch()
 
@@ -249,6 +257,7 @@ class SettingsView(QWidget):
         config = load_config()
         self.input_path.setText(config.get("download_path", "downloads"))
         self.spin_limit.setValue(config.get("download_limit", 5))
+        self.spin_fetch_limit.setValue(config.get("initial_fetch_limit", 500))
         self.spin_speed.setValue(config.get("max_speed_kb", 0))
         
         proxy = config.get("proxy", {})
@@ -263,6 +272,7 @@ class SettingsView(QWidget):
         config = {
             "download_path": self.input_path.text(),
             "download_limit": self.spin_limit.value(),
+            "initial_fetch_limit": self.spin_fetch_limit.value(),
             "max_speed_kb": self.spin_speed.value(),
             "proxy": {
                 "enabled": self.chk_enable_proxy.isChecked(),

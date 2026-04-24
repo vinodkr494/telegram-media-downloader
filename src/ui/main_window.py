@@ -577,7 +577,10 @@ class MainWindow(QMainWindow):
             # To avoid blocking the background fetch signal, we use a single shot timer
             QTimer.singleShot(0, lambda: self.show_media_browser(channel, None, c_dict))
 
-        self.worker.fetch_media_list(channel)
+        from ui.views.settings_view import load_config
+        cfg = load_config()
+        fetch_limit = cfg.get("initial_fetch_limit", 500)
+        self.worker.fetch_media_list(channel, limit=fetch_limit)
 
     def show_media_browser(self, channel_input, channel_obj, messages_dict):
         # 🔄 Update existing dialog if it's already open (Instant Loading Flow)
