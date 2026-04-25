@@ -1,6 +1,7 @@
 {
     "download_path": "downloads",
     "download_limit": 1,
+    "initial_fetch_limit": 500,
     "max_speed_kb": 0,
     "dark_mode": false,
     "proxy": {

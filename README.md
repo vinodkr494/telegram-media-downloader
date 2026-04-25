@@ -2,8 +2,6 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/vinodkr494/telegram-media-downloader?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases/latest)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/vinodkr494/telegram-media-downloader/total?style=flat-square)](https://github.com/vinodkr494/telegram-media-downloader/releases)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-yellow?style=flat-square&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/vinodkr494)
-
 🚀 **Bulk-download videos, images, PDFs, audio & more** from any Telegram channel or group. Features a **Premium PySide6 Dashboard** with high-performance analytics, **Global Queue Tracking** (Total progress % & Session usage), **Advanced Task Management** (Prioritize & Cancel), category browser, real-time search, parallel downloads, smart deduplication, speed limiter, proxy support, and desktop notifications.
 
 ### 🗄️ SQLite Persistence Engine
@@ -132,6 +130,12 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 ---
 
 ## Changelog
+
+### v2.6.5
+- ⚙️ **Custom Scan Limit**: Added support for configuring the initial media fetching limit in Settings (previously hardcoded to 500).
+- 💖 **Sponsorship Refresh**: Replaced Buy Me a Coffee with GitHub Sponsors to ensure full support for Indian developers and international sponsors.
+- 🎨 **Premium Sponsor Site**: Launched a dedicated, professional landing page to showcase project impact and support options.
+- 🧹 **Maintenance**: Internal refactoring to improve data persistence and scanning reliability.
 
 ### v2.6.4
 - 🧵 **Forum Topic Support**: Full support for downloading from specific Telegram forum topics and sub-channels using the `channelID_topicID` format or direct topic URLs.
@@ -285,7 +289,6 @@ If you find this tool helpful and want to support its continued development, ple
 
 - **⭐ Star this repository** to help others find it.
 - **💖 Sponsor on GitHub**: [Sponsor @vinodkr494](https://github.com/sponsors/vinodkr494)
-- **☕ Buy Me a Coffee**: [buymeacoffee.com/vinodkr494](https://www.buymeacoffee.com/vinodkr494)
 
 Your support helps cover the costs of testing, maintenance, and new features!
 
