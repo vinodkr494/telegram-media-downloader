@@ -1,0 +1,200 @@
+:root {
+    --bg-main: #0B1120;
+    --bg-surface: #1E293B;
+    --bg-sidebar: #020617;
+    --primary: #2BA5E4;
+    --primary-hover: #1A96D5;
+    --text-main: #F8FAFC;
+    --text-muted: #94A3B8;
+    --border: #334155;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+/* Navbar */
+.navbar {
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 0;
+    margin-bottom: 4rem;
+}
+
+.nav-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.logo span {
+    color: var(--primary);
+}
+
+/* Hero Section */
+.hero {
+    text-align: center;
+    margin-bottom: 5rem;
+}
+
+.hero h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 1rem;
+}
+
+.text-primary {
+    color: var(--primary);
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin: 0 auto 2.5rem;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: 0.2s;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-2px);
+}
+
+.btn-large {
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+}
+
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+}
+
+.btn-outline:hover {
+    background-color: var(--bg-surface);
+}
+
+/* Grid Layout */
+.main-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 2rem;
+    margin-bottom: 5rem;
+}
+
+.card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.about-card h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.about-card p {
+    margin-bottom: 1rem;
+    color: var(--text-muted);
+}
+
+.about-card strong {
+    color: var(--text-main);
+}
+
+.reasons-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.info-card {
+    display: flex;
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+
+.info-card .icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.info-card h3 {
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.info-card p {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding-bottom: 4rem;
+    border-top: 1px solid var(--border);
+    padding-top: 2rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.footer a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+}
