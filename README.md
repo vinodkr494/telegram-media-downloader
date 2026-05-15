@@ -131,14 +131,9 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Changelog
 
-### v2.6.6
-- 🍎 **macOS DMG Fix**: Completely refactored the macOS build process to produce a working `.dmg` installer with a proper `.app` bundle.
-- 📦 **Improved CI/CD**: Updated GitHub Actions to automate DMG creation using `dmgbuild`.
-- 🛠️ **Build Optimization**: Simplified build scripts and unified artifact naming across Windows, Linux, and macOS.
-
 ### v2.6.5
 - ⚙️ **Custom Scan Limit**: Added support for configuring the initial media fetching limit in Settings (previously hardcoded to 500).
-- 💖 **Sponsorship Refresh**: Replaced Buy Me a Coffee with GitHub Sponsors to ensure full support for Indian developers and international sponsors.
+
 - 🎨 **Premium Sponsor Site**: Launched a dedicated, professional landing page to showcase project impact and support options.
 - 🧹 **Maintenance**: Internal refactoring to improve data persistence and scanning reliability.
 
