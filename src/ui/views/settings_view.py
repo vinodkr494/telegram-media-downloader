@@ -15,7 +15,7 @@ def load_config():
     default_config = {
         "download_path": "downloads",
         "download_limit": 5,
-        "initial_fetch_limit": 500,
+        "initial_fetch_limit": 2000,
         "max_speed_kb": 0,
         "dark_mode": None,  # None = follow Windows system setting
         "proxy": {
@@ -257,7 +257,7 @@ class SettingsView(QWidget):
         config = load_config()
         self.input_path.setText(config.get("download_path", "downloads"))
         self.spin_limit.setValue(config.get("download_limit", 5))
-        self.spin_fetch_limit.setValue(config.get("initial_fetch_limit", 500))
+        self.spin_fetch_limit.setValue(config.get("initial_fetch_limit", 2000))
         self.spin_speed.setValue(config.get("max_speed_kb", 0))
         
         proxy = config.get("proxy", {})

@@ -383,9 +383,9 @@ async def fetch_categorized_media(client, channel, limit=None, topic_id=None):
     """
     if limit is None:
         try:
-            limit = int(os.getenv('FETCH_LIMIT', 500))
+            limit = int(os.getenv('FETCH_LIMIT', 2000))
         except:
-            limit = 500
+            limit = 2000
             
     if topic_id:
         print(f"DEBUG: fetch_categorized_media using topic_id={topic_id}")

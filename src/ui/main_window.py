@@ -583,7 +583,7 @@ class MainWindow(QMainWindow):
 
         from ui.views.settings_view import load_config
         cfg = load_config()
-        fetch_limit = cfg.get("initial_fetch_limit", 500)
+        fetch_limit = cfg.get("initial_fetch_limit", 2000)
         self.worker.fetch_media_list(channel, limit=fetch_limit)
 
     def show_media_browser(self, channel_input, channel_obj, messages_dict):

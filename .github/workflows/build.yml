@@ -36,6 +36,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+          if [ "${{ runner.os }}" == "macOS" ]; then
+            pip install dmgbuild
+          fi
 
       - name: Extract App Version
         id: get_version
@@ -47,26 +50,40 @@ jobs:
         shell: bash
         run: |
           cd src
-          python -c "import PyInstaller.__main__; import os; PyInstaller.__main__.run(['--noconfirm', '--onefile', '--windowed', f'--add-data=assets{os.pathsep}assets', '--icon=assets/logo.ico', '--hidden-import', 'core_downloader', '--hidden-import', 'telethon', '--name', f'TGDownloader-v{os.environ[\"VERSION\"]}-${{ runner.os }}', 'gui.py'])"
-          cd ..
-
-      - name: Rename Executable (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          cd src/dist
-          Rename-Item -Path "TGDownloader-v${{ env.VERSION }}-${{ runner.os }}.exe" -NewName "TGDownloader-v${{ env.VERSION }}-Windows.exe"
+          if [ "${{ runner.os }}" == "macOS" ]; then
+            # Build .app bundle for macOS
+            # Note: We don't use --onefile for macOS .app bundles to ensure compatibility
+            python -m PyInstaller --noconfirm --windowed --noconsole \
+              --add-data "assets:assets" \
+              --icon "assets/logo.ico" \
+              --hidden-import "core_downloader" \
+              --hidden-import "telethon" \
+              --name "TGDownloader" \
+              gui.py
+            cd ..
+            # Create DMG
+            export APP_NAME="TGDownloader.app"
+            dmgbuild -s dmg_settings.py "TG Media Downloader" "src/dist/TGDownloader-v${{ env.VERSION }}-macOS.dmg"
+          else
+            # Windows/Linux (onefile binary)
+            python -c "import PyInstaller.__main__; import os; PyInstaller.__main__.run(['--noconfirm', '--onefile', '--windowed', f'--add-data=assets{os.pathsep}assets', '--icon=assets/logo.ico', '--hidden-import', 'core_downloader', '--hidden-import', 'telethon', '--name', f'TGDownloader-v{os.environ[\"VERSION\"]}-${{ runner.os }}', 'gui.py'])"
+            cd ..
+          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: TGDownloader-v${{ env.VERSION }}-${{ runner.os }}
-          path: src/dist/TGDownloader-v${{ env.VERSION }}-*
+          path: |
+            src/dist/TGDownloader-v${{ env.VERSION }}-*
+          if-no-files-found: warn
 
       - name: Publish to GitHub Releases
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: src/dist/TGDownloader-v${{ env.VERSION }}-*
+          files: |
+            src/dist/TGDownloader-v${{ env.VERSION }}-*
           name: TG Media Downloader v${{ env.VERSION }}
           draft: false
           prerelease: false
