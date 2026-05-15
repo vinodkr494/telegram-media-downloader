@@ -53,7 +53,6 @@ jobs:
           cd src
           if [ "${{ runner.os }}" == "macOS" ]; then
             # Build .app bundle for macOS
-            # Note: We don't use --onefile for macOS .app bundles to ensure compatibility
             python -m PyInstaller --noconfirm --windowed --noconsole \
               --add-data "assets:assets" \
               --icon "assets/logo.ico" \
@@ -64,10 +63,19 @@ jobs:
             cd ..
             # Create DMG
             export APP_NAME="TGDownloader.app"
-            dmgbuild -s dmg_settings.py "TG Media Downloader" "src/dist/TGDownloader-v${{ env.VERSION }}-macOS.dmg"
+            dmgbuild -s dmg_settings.py "TG Media Downloader" "src/dist/TGDownloader-v${VERSION}-macOS.dmg"
           else
-            # Windows/Linux (onefile binary)
-            python -c "import PyInstaller.__main__; import os; PyInstaller.__main__.run(['--noconfirm', '--onefile', '--windowed', f'--add-data=assets{os.pathsep}assets', '--icon=assets/logo.ico', '--hidden-import', 'core_downloader', '--hidden-import', 'telethon', '--name', f'TGDownloader-v{os.environ[\"VERSION\"]}-${{ runner.os }}', 'gui.py'])"
+            # Determine path separator for PyInstaller
+            if [ "${{ runner.os }}" == "Windows" ]; then SEP=";"; else SEP=":"; fi
+            
+            # Build onefile binary for Windows/Linux
+            python -m PyInstaller --noconfirm --onefile --windowed \
+              --add-data "assets${SEP}assets" \
+              --icon "assets/logo.ico" \
+              --hidden-import "core_downloader" \
+              --hidden-import "telethon" \
+              --name "TGDownloader-v${VERSION}-${{ runner.os }}" \
+              gui.py
             cd ..
           fi
 
