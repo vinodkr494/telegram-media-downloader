@@ -549,12 +549,7 @@ class MainWindow(QMainWindow):
         channel = self.input_channel.text().strip()
         if not channel: return
         
-        self.btn_fetch.setText("Fetching...")
-        self.btn_fetch.setEnabled(False)
-        from PySide6.QtWidgets import QApplication
-        QApplication.processEvents()
-        
-        # 🚀 Instant Load from Cache to "WOW" the user
+        # 🚀 Instant Load to Bulk Mode or Cache
         from database import get_cached_media
         cached = get_cached_media(channel)
         if cached:
@@ -578,13 +573,10 @@ class MainWindow(QMainWindow):
                 c_dict[k].sort(key=lambda x: x.id, reverse=True)
             
             # Show dialog immediately with cached data
-            # To avoid blocking the background fetch signal, we use a single shot timer
-            QTimer.singleShot(0, lambda: self.show_media_browser(channel, None, c_dict))
-
-        from ui.views.settings_view import load_config
-        cfg = load_config()
-        fetch_limit = cfg.get("initial_fetch_limit", 2000)
-        self.worker.fetch_media_list(channel, limit=fetch_limit)
+            self.show_media_browser(channel, None, c_dict)
+        else:
+            # Show dialog immediately in Bulk Download Mode
+            self.show_media_browser(channel, None, None)
 
     def show_media_browser(self, channel_input, channel_obj, messages_dict):
         # 🔄 Update existing dialog if it's already open (Instant Loading Flow)
@@ -634,29 +626,55 @@ class MainWindow(QMainWindow):
         dialog = MediaBrowserDialog(title, messages_dict, self, previous_selected_ids=existing_ids, is_dark=is_dark)
         self._active_media_browser = dialog
         
+        dialog.fetch_requested.connect(lambda: self._trigger_specific_fetch(channel_input, dialog))
+        
         if dialog.exec():
-            selected_msgs = dialog.get_selected_messages()
-            if not selected_msgs:
-                self._active_media_browser = None
-                return # they selected nothing
+            if dialog.is_bulk_mode():
+                bulk_media_ids = dialog.get_bulk_selections()
+                if not bulk_media_ids:
+                    self._active_media_browser = None
+                    return
+                for m_id in bulk_media_ids:
+                    self.worker.start_download(
+                        channel_input=channel_input, 
+                        media_id=m_id, 
+                        download_path=cfg.get("download_path", "downloads"), 
+                        download_limit=cfg.get("download_limit", 5), 
+                        max_speed_kb=cfg.get("max_speed_kb", 0),
+                        selected_message_ids=None, # This triggers the unbounded limit=None bulk fetch
+                        task_id=None
+                    )
+            else:
+                selected_msgs = dialog.get_selected_messages()
+                if not selected_msgs:
+                    self._active_media_browser = None
+                    return # they selected nothing
+                    
+                selected_ids = [m.id for m in selected_msgs]
                 
-            selected_ids = [m.id for m in selected_msgs]
-            
-            # If re-selecting, we use existing task_id
-            target_task_id = self._reselect_task_id
-            self._reselect_task_id = None # Clear context
-            
-            self.worker.start_download(
-                channel_input=channel_input, 
-                media_id=6, # 6 is ALL
-                download_path=cfg.get("download_path", "downloads"), 
-                download_limit=cfg.get("download_limit", 5), 
-                max_speed_kb=cfg.get("max_speed_kb", 0),
-                selected_message_ids=selected_ids,
-                task_id=target_task_id # If this is set, worker will update existing task
-            )
+                # If re-selecting, we use existing task_id
+                target_task_id = self._reselect_task_id
+                self._reselect_task_id = None # Clear context
+                
+                self.worker.start_download(
+                    channel_input=channel_input, 
+                    media_id=6, # 6 is ALL
+                    download_path=cfg.get("download_path", "downloads"), 
+                    download_limit=cfg.get("download_limit", 5), 
+                    max_speed_kb=cfg.get("max_speed_kb", 0),
+                    selected_message_ids=selected_ids,
+                    task_id=target_task_id # If this is set, worker will update existing task
+                )
         
         self._active_media_browser = None
+
+    def _trigger_specific_fetch(self, channel_input, dialog):
+        dialog.btn_load_specific.setText("Fetching... Please wait.")
+        dialog.btn_load_specific.setEnabled(False)
+        from ui.views.settings_view import load_config
+        cfg = load_config()
+        fetch_limit = cfg.get("initial_fetch_limit", 2000)
+        self.worker.fetch_media_list(channel_input, limit=fetch_limit)
 
     def on_fetch_error(self, channel, err_msg):
         if self._reselect_task_id and self._reselect_task_id in self.card_widgets:

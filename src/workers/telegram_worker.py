@@ -454,11 +454,14 @@ class TelegramWorker(QThread):
             }, 0)
 
             # 3. Fetch real messages (this takes time)
-            messages = await get_messages_by_type(self.client, channel, media_id, topic_id=topic_id)
-            
-            # Filter if specific messages were selected
             if selected_message_ids is not None:
-                messages = [m for m in messages if m.id in selected_message_ids]
+                # Fast path: directly fetch selected messages
+                raw_messages = await self.client.get_messages(channel, ids=selected_message_ids)
+                # Client.get_messages with ids can return None for deleted/inaccessible messages
+                messages = [m for m in raw_messages if m is not None]
+            else:
+                # Unbounded bulk fetch for entire categories
+                messages = await get_messages_by_type(self.client, channel, media_id, limit=None, topic_id=topic_id)
             
             all_messages_count = len(messages)
             messages_to_download = [m for m in messages if m.id not in downloaded_state]

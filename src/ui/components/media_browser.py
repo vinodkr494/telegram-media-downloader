@@ -154,6 +154,8 @@ class SelectableMediaRow(QWidget):
         return self.cb.isChecked()
 
 class MediaBrowserDialog(QDialog):
+    fetch_requested = Signal()
+
     def __init__(self, channel_title, messages_dict, parent=None, previous_selected_ids=None, is_dark=True):
         super().__init__(parent)
         self.setWindowTitle(f"Media Browser - {channel_title}")
@@ -164,7 +166,7 @@ class MediaBrowserDialog(QDialog):
             self.setWindowIcon(QIcon(icon_path))
             
         self.setMinimumSize(750, 500)
-        self.messages = messages_dict
+        self.messages = messages_dict or {}
         self.selected_messages = []
         self.rows = {} # tab_name -> list of SelectableMediaRow
         
@@ -305,7 +307,73 @@ class MediaBrowserDialog(QDialog):
         self.btn_reset_filters.clicked.connect(self.reset_filters)
         f_layout.addWidget(self.btn_reset_filters, 2, 2)
         
-                # Tabs
+        # Stacked Widget to support Bulk vs Tabs
+        from PySide6.QtWidgets import QStackedWidget
+        self.main_stack = QStackedWidget()
+
+        # --- Bulk View ---
+        self.bulk_view = QWidget()
+        bulk_layout = QVBoxLayout(self.bulk_view)
+        bulk_layout.setAlignment(Qt.AlignCenter)
+        bulk_layout.setSpacing(20)
+        
+        lbl_bulk = QLabel("🚀 Ready for Bulk Download")
+        lbl_bulk.setStyleSheet("font-size: 24px; font-weight: bold;")
+        lbl_bulk.setAlignment(Qt.AlignCenter)
+        
+        lbl_desc = QLabel("Download entire categories without fetching specific items first.\nThis bypasses the 2000 item limitation.")
+        lbl_desc.setAlignment(Qt.AlignCenter)
+        lbl_desc.setStyleSheet("color: #888;")
+        
+        bulk_layout.addWidget(lbl_bulk)
+        bulk_layout.addWidget(lbl_desc)
+        
+        cat_layout = QVBoxLayout()
+        cat_layout.setSpacing(15)
+        cat_layout.setAlignment(Qt.AlignCenter)
+        self.bulk_checkboxes = {}
+        
+        # Container for checkboxes to keep them centered together
+        cb_container = QWidget()
+        cb_layout = QVBoxLayout(cb_container)
+        cb_layout.setSpacing(12)
+        cb_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # We only need the main categories for bulk
+        categories = [
+            ("🎬 All Media (Images, Videos)", 6),
+            ("🖼️ Images Only", 1),
+            ("🎥 Videos Only", 2),
+            ("📄 Files & Documents", 3),
+            ("🎵 Audio & Voice", 5)
+        ]
+        for i, (name, media_id) in enumerate(categories):
+            cb = QCheckBox(name)
+            cb.setStyleSheet("font-size: 14px;") # Removed padding that broke alignment
+            # Default check "All Media"
+            if media_id == 6: cb.setChecked(True)
+            self.bulk_checkboxes[media_id] = cb
+            cb_layout.addWidget(cb)
+            
+        cat_layout.addWidget(cb_container)
+        
+        bulk_layout.addLayout(cat_layout)
+        
+        self.btn_load_specific = QPushButton("🔍 Load & Select Specific Files (Takes time)")
+        self.btn_load_specific.setObjectName("SecondaryButton")
+        self.btn_load_specific.setMinimumHeight(44)
+        self.btn_load_specific.clicked.connect(lambda: self.fetch_requested.emit())
+        
+        # Center the load specific button by wrapping it
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_load_specific)
+        btn_layout.addStretch()
+        bulk_layout.addLayout(btn_layout)
+        
+        self.main_stack.addWidget(self.bulk_view)
+
+        # --- Tabs View ---
         self.tabs = QTabWidget()
         self.tabs.setObjectName("MediaTabs")
 
@@ -329,7 +397,17 @@ class MediaBrowserDialog(QDialog):
         self.tabs.addTab(self.tab_gifs,  f"🖼️ GIFs ({len(self.messages.get('gifs', []))})")
         self.tabs.addTab(self.tab_chat,  f"💬 Chat ({len(self.messages.get('chat', []))})")
 
-        layout.addWidget(self.tabs, stretch=1)
+        self.main_stack.addWidget(self.tabs)
+        layout.addWidget(self.main_stack, stretch=1)
+        
+        # Determine initial view
+        if not self.messages or len(self.messages.get("all", [])) == 0:
+            self.main_stack.setCurrentIndex(0)
+            self.lbl_selected_count.setText("Bulk Mode Active")
+            self.inp_search.setEnabled(False)
+            self.btn_toggle_filters.setEnabled(False)
+        else:
+            self.main_stack.setCurrentIndex(1)
 
         # Bottom Actions
         bottom_layout = QHBoxLayout()
@@ -526,6 +604,17 @@ class MediaBrowserDialog(QDialog):
     def get_selected_messages(self):
         return self.selected_messages
 
+    def is_bulk_mode(self):
+        return self.main_stack.currentIndex() == 0
+
+    def get_bulk_selections(self):
+        selected_media_ids = []
+        if hasattr(self, 'bulk_checkboxes'):
+            for media_id, cb in self.bulk_checkboxes.items():
+                if cb.isChecked():
+                    selected_media_ids.append(media_id)
+        return selected_media_ids
+
     def refresh_content(self, messages_dict):
         """Refreshes the message list while attempting to preserve selection state."""
         # 1. Save current selected IDs
@@ -563,3 +652,6 @@ class MediaBrowserDialog(QDialog):
         self.tabs.addTab(self.tab_chat,  f"💬 Chat ({len(self.messages.get('chat', []))})")
         
         self.update_selected_count()
+        self.main_stack.setCurrentIndex(1)
+        self.inp_search.setEnabled(True)
+        self.btn_toggle_filters.setEnabled(True)

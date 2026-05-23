@@ -164,7 +164,11 @@ async def download_single_file(client, channel, message, folder_name, progress_c
             # Deduplication Check
             file_name = None
             if getattr(message, 'file', None):
-                file_name = message.file.name or f"{message.file.id}{message.file.ext}"
+                try:
+                    file_name = message.file.name or f"{message.file.id}{message.file.ext}"
+                except AttributeError:
+                    # Fallback for Telethon 1.38.x PhotoSize bug during file.id generation
+                    file_name = message.file.name or f"msg_{message.id}{message.file.ext}"
             
             if file_name:
                 expected_filepath = os.path.join(folder_name, file_name)
@@ -240,6 +244,7 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                             progress_callback=internal_progress
                         )
                     except Exception as e2:
+                        print(f"Fallback Strategy 1 failed: {e2}")
                         # Strategy 2: Manual construction of InputPhotoFileLocation (lowest level)
                         from telethon.tl.types import InputPhotoFileLocation
                         photo = message.photo
@@ -272,9 +277,11 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                                 if complete_cb: complete_cb(message.id, paused=True, filepath=None)
                                 return
                             except Exception as e3:
+                                print(f"Fallback Strategy 2 failed: {e3}")
                                 # If both fail, we re-raise the original error to allow retry logic to take over
                                 raise attr_err
                         else:
+                            print("Fallback Strategy 2 failed: No best_size found")
                             raise attr_err
                 else:
                     raise attr_err
@@ -338,7 +345,7 @@ async def download_in_batches_headless(client, channel, messages, folder_name, b
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)
 
-async def get_messages_by_type(client, channel, media_choice, min_id=None, max_id=None, limit=2000, topic_id=None):
+async def get_messages_by_type(client, channel, media_choice, min_id=None, max_id=None, limit=None, topic_id=None):
     """
     media_choice: 
     1 - Images
