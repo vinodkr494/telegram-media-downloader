@@ -131,6 +131,11 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Changelog
 
+### v2.6.7
+- 🛠️ **Fixed PhotoSize Deduplication Bug**: Fixed the `AttributeError: 'PhotoSize' object has no attribute 'location'` error that occurred during deduplication checks before download in Telethon 1.38.1.
+- 🎨 **UI Layout Improvements**: Fixed vertical alignment of the bulk download checkboxes on the "Ready for Bulk Download" page and eliminated visual stretching.
+- 🔤 **Font Warnings Fix**: Replaced point-based font sizes (`8.5pt`) with pixel-based (`11px`) in stylesheets to eliminate `QFont::setPointSize` terminal warnings and ensure consistent, cleaner font rendering.
+
 ### v2.6.6
 - 🍎 **macOS DMG Fix**: Completely refactored the macOS build process to produce a working `.dmg` installer with a proper `.app` bundle.
 - 📦 **Improved CI/CD**: Updated GitHub Actions to automate DMG creation using `dmgbuild`.
