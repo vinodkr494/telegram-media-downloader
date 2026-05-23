@@ -52,15 +52,18 @@ Context menus (Right-Click) now dynamically adopt the application's theme, provi
 </p>
 
 <p align="center">
-  <img src="screenshots/screenshot_v2.6.3/home_v2.6.3.png" width="800" alt="Home View">
+  <img src="screenshots/screenshot_v2.4.1/media_selection.png" width="800" alt="Media Selection">
 </p>
 
 <p align="center">
-  <img src="screenshots/screenshot_v2.6.3/download_queue_v2.6.3.png" width="800" alt="Download Queue">
+  <img src="screenshots/screenshot_v2.4.1/download_card_v2.4.1.png" width="800" alt="Download Queue">
+</p>
+<p align="center">
+  <img src="screenshots/screenshot_v2.4.1/download_queue_v2.4.1.png" width="800" alt="Download Queue">
 </p>
 
 <p align="center">
-  <img src="screenshots/screenshot_v2.6.3/settings_v2.6.3.png" width="800" alt="Settings View">
+  <img src="screenshots/screenshot_v2.4.1/settingsv2.4.1.png" width="800" alt="Settings View">
 </p>
 
 ---
