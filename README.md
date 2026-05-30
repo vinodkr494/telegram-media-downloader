@@ -134,6 +134,9 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Changelog
 
+### v2.7.1
+- 🍎 **Intel Mac Support**: Added support for Intel-based Macs (x86_64 architecture). The build workflow now produces separate `.dmg` installers for both Apple Silicon (ARM64) and Intel Macs, ensuring full compatibility across all macOS devices.
+
 ### v2.6.7
 - 🛠️ **Fixed PhotoSize Deduplication Bug**: Fixed the `AttributeError: 'PhotoSize' object has no attribute 'location'` error that occurred during deduplication checks before download in Telethon 1.38.1.
 - 🎨 **UI Layout Improvements**: Fixed vertical alignment of the bulk download checkboxes on the "Ready for Bulk Download" page and eliminated visual stretching.

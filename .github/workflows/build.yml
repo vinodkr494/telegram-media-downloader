@@ -17,7 +17,7 @@ jobs:
       contents: write
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
     env:
       VERSION: 'latest'
 
@@ -63,7 +63,7 @@ jobs:
             cd ..
             # Create DMG
             export APP_NAME="TGDownloader.app"
-            dmgbuild -s dmg_settings.py "TG Media Downloader" "src/dist/TGDownloader-v${VERSION}-macOS.dmg"
+            dmgbuild -s dmg_settings.py "TG Media Downloader" "src/dist/TGDownloader-v${VERSION}-macOS-${{ runner.arch }}.dmg"
           else
             # Determine path separator for PyInstaller
             if [ "${{ runner.os }}" == "Windows" ]; then SEP=";"; else SEP=":"; fi
@@ -74,7 +74,7 @@ jobs:
               --icon "assets/logo.ico" \
               --hidden-import "core_downloader" \
               --hidden-import "telethon" \
-              --name "TGDownloader-v${VERSION}-${{ runner.os }}" \
+              --name "TGDownloader-v${VERSION}-${{ runner.os }}-${{ runner.arch }}" \
               gui.py
             cd ..
           fi
@@ -82,7 +82,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TGDownloader-v${{ env.VERSION }}-${{ runner.os }}
+          name: TGDownloader-v${{ env.VERSION }}-${{ runner.os }}-${{ runner.arch }}
           path: |
             src/dist/TGDownloader-v${{ env.VERSION }}-*
           if-no-files-found: warn

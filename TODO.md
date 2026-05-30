@@ -42,6 +42,6 @@ This document tracks the vision and high-level goals for the major **v3.0.0** re
 
 ## ✅ Roadmap
 
-- **Current Version**: 2.6.7
+- **Current Version**: 2.7.1
 - **Next Milestone**: 2.7.0 (Cleanup & Refactor)
 - **Primary Goal**: 3.0.0 (The Media Operating System)

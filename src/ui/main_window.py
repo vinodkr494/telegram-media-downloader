@@ -75,6 +75,7 @@ class MainWindow(QMainWindow):
             <li>✨ <b>Instant Loading:</b> Zero-wait cached media browsing.</li>
             <li>⚡ <b>Byte-Range Resuming:</b> Flawless pause & resume via explicit offsets.</li>
             <li>🗄️ <b>SQLite Persistence:</b> Robust, crash-proof active queues.</li>
+            <li>🍎 <b>Native macOS:</b> Separate installers for Apple Silicon and Intel Macs.</li>
         </ul>
         <hr/>
         <p>Enjoying the app? Consider supporting development by starring our repository or sponsoring!</p>
