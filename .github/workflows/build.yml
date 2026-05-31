@@ -45,6 +45,7 @@ jobs:
           PREFIX=""
           if [ "${{ matrix.os }}" == "macos-latest" ] && [ "${{ matrix.arch }}" == "x64" ]; then
             PREFIX="arch -x86_64"
+            rustup target add x86_64-apple-darwin
           fi
           $PREFIX python -m pip install --upgrade pip
           $PREFIX python -m pip install -r requirements.txt
