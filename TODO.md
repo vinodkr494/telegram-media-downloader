@@ -43,5 +43,7 @@ This document tracks the vision and high-level goals for the major **v3.0.0** re
 ## ✅ Roadmap
 
 - **Current Version**: 2.7.1
-- **Next Milestone**: 2.7.0 (Cleanup & Refactor)
+- **Next Milestone**: 2.7.5 (Custom Folder Naming & Forum Topic Auto-separation)
+  - [ ] **Custom Folder Naming**: Support `{username}` and `{channel_id}` placeholders in the download path template.
+  - [ ] **Forum Auto-separation**: Option to automatically download all topics from a forum into separate subfolders named after the topics when the main channel ID is provided.
 - **Primary Goal**: 3.0.0 (The Media Operating System)
