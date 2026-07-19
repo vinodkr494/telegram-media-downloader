@@ -22,6 +22,18 @@ def load_active_tasks():
     return load_active_tasks_db()
 
 def save_active_tasks(tasks):
+    # Sync with SQLite by first deleting all tasks in the DB
+    try:
+        import sqlite3
+        from database import DB_PATH
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tasks")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error syncing active tasks to DB: {e}")
+
     # For backward compatibility, keep the loop but save each to DB
     for t in tasks:
         save_task_db(t)
@@ -48,6 +60,30 @@ def parse_channel_input(channel_input):
     """
     s = str(channel_input).strip()
     
+    # 0. Handle web.telegram.org format (Web A, Web K, Web Z formats)
+    if "web.telegram.org" in s:
+        try:
+            if "#" in s:
+                fragment = s.split("#")[-1]
+                # Extract value from query param p= if present (common in Web K/Z)
+                if "p=" in fragment:
+                    p_val = fragment.split("p=")[-1].split("&")[0]
+                    fragment = p_val
+                
+                # Strip leading 'c' if it's followed by digits (e.g., c123456789 -> 123456789)
+                if fragment.startswith("c"):
+                    cleaned_part = fragment[1:].replace("-", "").split("_")[0]
+                    if cleaned_part.isdigit():
+                        fragment = fragment[1:]
+                
+                # If there's a topic/message ID separator '_'
+                if "_" in fragment:
+                    parts = fragment.split("_")
+                    if len(parts) >= 2 and parts[1].isdigit():
+                        return parts[0], int(parts[1])
+                s = fragment
+        except: pass
+
     # 1. Handle URL format: https://t.me/c/123456789/1
     if "t.me/c/" in s:
         try:
@@ -319,7 +355,7 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                 print(f"Error downloading message {message.id} after {max_retries} attempts: {e}")
                 if complete_cb: complete_cb(message.id, paused=False)
 
-async def download_in_batches_headless(client, channel, messages, folder_name, batch_size, downloaded_state, progress_cb, complete_cb, task_cancel_event=None, max_speed_kb=None):
+async def download_in_batches_headless(client, channel, messages, folder_name, batch_size, downloaded_state, progress_cb, complete_cb, task_cancel_event=None, max_speed_kb=None, msg_folder_resolver=None):
     semaphore = asyncio.Semaphore(batch_size)
     
     def internal_complete(msg_id, paused=False, filepath=None):
@@ -339,7 +375,8 @@ async def download_in_batches_headless(client, channel, messages, folder_name, b
             if task_cancel_event and task_cancel_event.is_set():
                 if complete_cb: complete_cb(message.id, paused=True, filepath=None)
                 return
-            await download_single_file(client, channel, message, folder_name, progress_cb, internal_complete, task_cancel_event, max_speed_kb)
+            target_folder = msg_folder_resolver(message) if msg_folder_resolver else folder_name
+            await download_single_file(client, channel, message, target_folder, progress_cb, internal_complete, task_cancel_event, max_speed_kb)
 
     tasks = [download_message(m) for m in messages if m.id not in downloaded_state]
     if tasks:

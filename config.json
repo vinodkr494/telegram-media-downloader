@@ -1,9 +1,10 @@
 {
     "download_path": "downloads",
-    "download_limit": 1,
+    "download_limit": 39,
     "initial_fetch_limit": 500,
-    "max_speed_kb": 0,
-    "dark_mode": false,
+    "max_speed_kb": 10,
+    "forum_auto_separation": true,
+    "dark_mode": true,
     "proxy": {
         "enabled": false,
         "type": "SOCKS5",

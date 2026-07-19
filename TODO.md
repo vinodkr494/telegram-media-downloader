@@ -42,8 +42,10 @@ This document tracks the vision and high-level goals for the major **v3.0.0** re
 
 ## ✅ Roadmap
 
-- **Current Version**: 2.7.1
-- **Next Milestone**: 2.7.5 (Custom Folder Naming & Forum Topic Auto-separation)
-  - [ ] **Custom Folder Naming**: Support `{username}` and `{channel_id}` placeholders in the download path template.
-  - [ ] **Forum Auto-separation**: Option to automatically download all topics from a forum into separate subfolders named after the topics when the main channel ID is provided.
+- **Current Version**: 2.7.5
+- **Next Milestone**: 2.8.0 (Post-Download Conversions)
+  - [ ] **Post-Download FFmpeg Pipeline**: Auto-convert `.ogg` to `.mp3` or `.mkv` to `.mp4` after completion.
+  - [x] **Custom Folder Naming**: Support `{username}` and `{channel_id}` placeholders in the download path template.
+  - [x] **Forum Auto-separation**: Option to automatically download all topics from a forum into separate subfolders named after the topics when the main channel ID is provided.
 - **Primary Goal**: 3.0.0 (The Media Operating System)
+

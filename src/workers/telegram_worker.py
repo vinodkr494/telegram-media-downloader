@@ -474,7 +474,7 @@ class TelegramWorker(QThread):
                 category_name = os.path.join(category_name, f"topic_{topic_id}")
             
             # 📂 Dynamic Path Templating
-            # Supported: {channel}, {category}, {year}, {month}, {day}
+            # Supported: {channel}, {category}, {year}, {month}, {day}, {username}, {channel_id}
             from datetime import datetime
             now_dt = datetime.now()
             
@@ -484,13 +484,83 @@ class TelegramWorker(QThread):
                 template = os.path.join(template, "{channel}", "{category}")
             
             safe_title = "".join([c if c.isalnum() or c in (' ', '-', '_') else '_' for c in title])
+            username_str = getattr(channel, 'username', '') or ''
+            safe_username = "".join([c if c.isalnum() or c in ('-', '_') else '_' for c in username_str])
+            if not safe_username:
+                safe_username = safe_title
+            
+            safe_channel_id = "".join([c if c.isalnum() or c in ('-', '_') else '_' for c in resolved_chan_id])
+            
+            from ui.views.settings_view import load_config
+            cfg = load_config()
+            forum_auto_separation = cfg.get("forum_auto_separation", False)
+
+            msg_folder_resolver = None
+            
+            # If it's a forum and auto-separation is enabled and we are not in a specific topic
+            if forum_auto_separation and getattr(channel, 'forum', False) and topic_id is None:
+                topic_map = {}
+                try:
+                    from telethon.tl.functions.channels import GetForumTopicsRequest
+                    forums = await self.client(GetForumTopicsRequest(
+                        channel=channel,
+                        offset_date=None,
+                        offset_id=0,
+                        offset_topic=0,
+                        limit=500
+                    ))
+                    if forums and getattr(forums, 'topics', None):
+                        for t_obj in forums.topics:
+                            topic_map[t_obj.id] = t_obj.title
+                except Exception as fe:
+                    print(f"Error fetching forum topics: {fe}")
+
+                def resolver(message):
+                    # Find topic ID
+                    reply_to = getattr(message, 'reply_to', None)
+                    msg_topic_id = None
+                    if reply_to:
+                        if getattr(reply_to, 'forum_topic', False) or getattr(reply_to, 'reply_to_top_id', None) is not None:
+                            msg_topic_id = getattr(reply_to, 'reply_to_top_id', None) or getattr(reply_to, 'reply_to_msg_id', None)
+                    
+                    # Determine category subfolder name
+                    base_folder_map = {1: "images", 2: "videos", 3: "pdfs", 4: "zips", 5: "audio", 6: "all_media"}
+                    category_name = base_folder_map.get(media_id, "all_media")
+                    
+                    if msg_topic_id is not None:
+                        topic_title = topic_map.get(msg_topic_id, None)
+                        if topic_title:
+                            safe_topic_title = "".join([c if c.isalnum() or c in (' ', '-', '_') else '_' for c in topic_title])
+                            topic_subfolder = safe_topic_title
+                        else:
+                            topic_subfolder = f"topic_{msg_topic_id}"
+                        category_name = os.path.join(category_name, topic_subfolder)
+                    
+                    msg_folder = template.format(
+                        channel=safe_title,
+                        category=category_name,
+                        year=now_dt.strftime("%Y"),
+                        month=now_dt.strftime("%m"),
+                        day=now_dt.strftime("%d"),
+                        username=safe_username,
+                        channel_id=safe_channel_id
+                    )
+                    
+                    if not os.path.isabs(msg_folder):
+                        msg_folder = os.path.abspath(msg_folder)
+                    os.makedirs(msg_folder, exist_ok=True)
+                    return msg_folder
+
+                msg_folder_resolver = resolver
             
             folder_name = template.format(
                 channel=safe_title,
                 category=category_name,
                 year=now_dt.strftime("%Y"),
                 month=now_dt.strftime("%m"),
-                day=now_dt.strftime("%d")
+                day=now_dt.strftime("%d"),
+                username=safe_username,
+                channel_id=safe_channel_id
             )
             
             os.makedirs(folder_name, exist_ok=True)
@@ -627,7 +697,8 @@ class TelegramWorker(QThread):
                 progress_cb=on_file_progress,
                 complete_cb=on_file_complete,
                 task_cancel_event=global_cancel_event,
-                max_speed_kb=max_speed_kb if max_speed_kb > 0 else None
+                max_speed_kb=max_speed_kb if max_speed_kb > 0 else None,
+                msg_folder_resolver=msg_folder_resolver
             )
             
             if task_id in self.running_tasks:

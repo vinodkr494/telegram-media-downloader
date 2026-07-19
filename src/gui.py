@@ -1,10 +1,26 @@
 import os
 import sys
 
-APP_VERSION = "2.7.4"
+APP_VERSION = "2.7.5"
 
 # We add src to path so absolute imports within src work cleanly
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+import traceback
+def log_exception(exc_type, exc_value, exc_traceback):
+    err_msg = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    print(f"\n!!! FATAL EXCEPTION !!!\n{err_msg}", file=sys.stderr)
+    try:
+        from resource_utils import get_project_root
+        crash_log_path = os.path.join(get_project_root(), "crash_report.log")
+        with open(crash_log_path, "a", encoding="utf-8") as f:
+            from datetime import datetime
+            f.write(f"\n--- CRASH AT {datetime.now()} ---\n")
+            f.write(err_msg)
+    except Exception as e:
+        print(f"Failed to write crash log: {e}", file=sys.stderr)
+
+sys.excepthook = log_exception
 
 from dotenv import load_dotenv
 from workers.telegram_worker import TelegramWorker

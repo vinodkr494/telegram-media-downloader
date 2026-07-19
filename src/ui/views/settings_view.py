@@ -17,6 +17,7 @@ def load_config():
         "download_limit": 5,
         "initial_fetch_limit": 2000,
         "max_speed_kb": 0,
+        "forum_auto_separation": False,
         "dark_mode": None,  # None = follow Windows system setting
         "proxy": {
             "enabled": False,
@@ -100,7 +101,7 @@ class SettingsView(QWidget):
 
         path_row = QHBoxLayout()
         self.input_path = QLineEdit("downloads")
-        self.input_path.setReadOnly(True)
+        self.input_path.setReadOnly(False)
         self.input_path.setFixedHeight(36)
         
         self.btn_browse = QPushButton("Browse Folder")
@@ -116,9 +117,13 @@ class SettingsView(QWidget):
         path_row.addWidget(self.btn_open)
         self.clayout.addLayout(path_row)
 
-        lbl_template_tip = QLabel("💡 <b>Dynamic variables supported</b>: {channel}, {category}, {year}, {month}, {day}")
+        lbl_template_tip = QLabel("💡 <b>Dynamic variables supported</b>: {channel}, {username}, {channel_id}, {category}, {year}, {month}, {day}")
         lbl_template_tip.setObjectName("MutedText")
         self.clayout.addWidget(lbl_template_tip)
+
+        self.chk_forum_sep = QCheckBox("Enable Forum Topic Auto-separation")
+        self.chk_forum_sep.setToolTip("Automatically download all topics from a forum into separate subfolders named after the topics.")
+        self.clayout.addWidget(self.chk_forum_sep)
 
         self.clayout.addWidget(self._create_divider())
 
@@ -259,6 +264,7 @@ class SettingsView(QWidget):
         self.spin_limit.setValue(config.get("download_limit", 5))
         self.spin_fetch_limit.setValue(config.get("initial_fetch_limit", 2000))
         self.spin_speed.setValue(config.get("max_speed_kb", 0))
+        self.chk_forum_sep.setChecked(config.get("forum_auto_separation", False))
         
         proxy = config.get("proxy", {})
         self.chk_enable_proxy.setChecked(proxy.get("enabled", False))
@@ -274,6 +280,7 @@ class SettingsView(QWidget):
             "download_limit": self.spin_limit.value(),
             "initial_fetch_limit": self.spin_fetch_limit.value(),
             "max_speed_kb": self.spin_speed.value(),
+            "forum_auto_separation": self.chk_forum_sep.isChecked(),
             "proxy": {
                 "enabled": self.chk_enable_proxy.isChecked(),
                 "type": self.combo_proxy_type.currentText(),
