@@ -134,7 +134,12 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Changelog
 
-### v2.7.5 (Upcoming)
+### v2.7.6 (Upcoming)
+- 🔄 **Prevent File Overwriting**: Added option to rename duplicate files with a suffix (e.g. `video (2).mp4`) instead of overwriting, with persistent resume mapping in the SQLite database.
+- 📅 **Message Timestamp Matching**: Added option to automatically set downloaded media and sidecar text file modification/accessed times to match the Telegram message creation date.
+- ⚙️ **GUI Config Toggles**: Integrated both features as custom checkboxes under Download Settings.
+
+### v2.7.5
 - 📁 **Custom Folder Naming**: Support `{username}` and `{channel_id}` placeholders in the download path template settings.
 - 📂 **Forum Topic Auto-separation**: Option to automatically download all topics from a forum into separate subfolders named after the topics when the main channel ID is provided.
 
