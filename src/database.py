@@ -25,6 +25,11 @@ def init_db():
     )
     """)
     
+    try:
+        cursor.execute("ALTER TABLE media_cache ADD COLUMN downloaded_path TEXT")
+    except sqlite3.OperationalError:
+        pass
+    
     # 2. Tasks: The active download queue
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS tasks (
@@ -187,6 +192,27 @@ def mark_media_completed(channel_id, msg_id):
     cursor = conn.cursor()
     c_id = str(channel_id).replace("-100", "", 1)
     cursor.execute("UPDATE media_cache SET completed=1 WHERE msg_id=? AND channel_id=?", (msg_id, c_id))
+    conn.commit()
+    conn.close()
+
+def get_media_downloaded_path(channel_id, msg_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    c_id = str(channel_id).replace("-100", "", 1)
+    cursor.execute("SELECT downloaded_path FROM media_cache WHERE msg_id=? AND channel_id=?", (msg_id, c_id))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+def update_media_downloaded_path(channel_id, msg_id, downloaded_path):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    c_id = str(channel_id).replace("-100", "", 1)
+    cursor.execute("""
+    INSERT INTO media_cache (msg_id, channel_id, downloaded_path)
+    VALUES (?, ?, ?)
+    ON CONFLICT(msg_id, channel_id) DO UPDATE SET downloaded_path=excluded.downloaded_path
+    """, (msg_id, c_id, downloaded_path))
     conn.commit()
     conn.close()
 

@@ -186,7 +186,30 @@ async def fetch_channel(client, channel_input):
         raise Exception(error_msg) # Re-raise with the helpful tip
 import time
 
+def get_unique_filepath(folder, filename):
+    base, ext = os.path.splitext(filename)
+    counter = 1
+    new_filepath = os.path.join(folder, filename)
+    while True:
+        try:
+            # Atomically check and reserve the filepath
+            with open(new_filepath, 'x'):
+                pass
+            return new_filepath
+        except FileExistsError:
+            counter += 1
+            new_filename = f"{base} ({counter}){ext}"
+            new_filepath = os.path.join(folder, new_filename)
+        except Exception:
+            # Fallback if any other OS error occurs
+            return new_filepath
+
 async def download_single_file(client, channel, message, folder_name, progress_cb=None, complete_cb=None, cancel_event=None, max_speed_kb=None):
+    from ui.views.settings_view import load_config
+    cfg = load_config()
+    rename_duplicates = cfg.get("rename_duplicates", True)
+    use_message_date = cfg.get("use_message_date", True)
+
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -206,8 +229,26 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                     # Fallback for Telethon 1.38.x PhotoSize bug during file.id generation
                     file_name = message.file.name or f"msg_{message.id}{message.file.ext}"
             
+            expected_filepath = None
             if file_name:
-                expected_filepath = os.path.join(folder_name, file_name)
+                if rename_duplicates:
+                    from telethon.utils import get_peer_id
+                    from database import get_media_downloaded_path, update_media_downloaded_path
+                    c_id = str(get_peer_id(channel)).replace("-100", "", 1)
+                    
+                    db_filename = get_media_downloaded_path(c_id, message.id)
+                    if db_filename:
+                        expected_filepath = os.path.join(folder_name, db_filename)
+                        if not os.path.exists(expected_filepath):
+                            expected_filepath = get_unique_filepath(folder_name, file_name)
+                            update_media_downloaded_path(c_id, message.id, os.path.basename(expected_filepath))
+                    else:
+                        expected_filepath = get_unique_filepath(folder_name, file_name)
+                        update_media_downloaded_path(c_id, message.id, os.path.basename(expected_filepath))
+                else:
+                    expected_filepath = os.path.join(folder_name, file_name)
+            
+            if expected_filepath:
                 if os.path.exists(expected_filepath):
                     existing_size = os.path.getsize(expected_filepath)
                     if file_size and existing_size >= file_size:
@@ -327,6 +368,13 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                 
                 # 📝 Message-Media Linker: Save sidecar .txt if message has text
                 if file_path and os.path.exists(file_path):
+                    if use_message_date and getattr(message, 'date', None):
+                        try:
+                            mtime = message.date.timestamp()
+                            os.utime(file_path, (mtime, mtime))
+                        except Exception as e:
+                            print(f"Error setting file time for {file_path}: {e}")
+                            
                     msg_text = (message.message or "").strip()
                     if msg_text:
                         base_path = os.path.splitext(file_path)[0]
@@ -334,6 +382,8 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                         try:
                             with open(txt_path, "w", encoding="utf-8") as f:
                                 f.write(msg_text)
+                            if use_message_date and getattr(message, 'date', None):
+                                os.utime(txt_path, (mtime, mtime))
                         except Exception as e:
                             print(f"Error saving sidecar text: {e}")
             break

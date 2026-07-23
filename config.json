@@ -4,6 +4,8 @@
     "initial_fetch_limit": 500,
     "max_speed_kb": 10,
     "forum_auto_separation": true,
+    "rename_duplicates": true,
+    "use_message_date": true,
     "dark_mode": true,
     "proxy": {
         "enabled": false,

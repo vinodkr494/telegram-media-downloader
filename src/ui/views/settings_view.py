@@ -18,6 +18,8 @@ def load_config():
         "initial_fetch_limit": 2000,
         "max_speed_kb": 0,
         "forum_auto_separation": False,
+        "rename_duplicates": True,
+        "use_message_date": True,
         "dark_mode": None,  # None = follow Windows system setting
         "proxy": {
             "enabled": False,
@@ -124,6 +126,14 @@ class SettingsView(QWidget):
         self.chk_forum_sep = QCheckBox("Enable Forum Topic Auto-separation")
         self.chk_forum_sep.setToolTip("Automatically download all topics from a forum into separate subfolders named after the topics.")
         self.clayout.addWidget(self.chk_forum_sep)
+
+        self.chk_rename_duplicates = QCheckBox("Rename Duplicate Filenames")
+        self.chk_rename_duplicates.setToolTip("Automatically append suffix (2, 3, etc.) to duplicate filenames instead of overwriting existing files.")
+        self.clayout.addWidget(self.chk_rename_duplicates)
+
+        self.chk_use_msg_date = QCheckBox("Set File Date to Message Date")
+        self.chk_use_msg_date.setToolTip("Set the file's modified and created times to match the date and time when the message was sent to the chat.")
+        self.clayout.addWidget(self.chk_use_msg_date)
 
         self.clayout.addWidget(self._create_divider())
 
@@ -265,6 +275,8 @@ class SettingsView(QWidget):
         self.spin_fetch_limit.setValue(config.get("initial_fetch_limit", 2000))
         self.spin_speed.setValue(config.get("max_speed_kb", 0))
         self.chk_forum_sep.setChecked(config.get("forum_auto_separation", False))
+        self.chk_rename_duplicates.setChecked(config.get("rename_duplicates", True))
+        self.chk_use_msg_date.setChecked(config.get("use_message_date", True))
         
         proxy = config.get("proxy", {})
         self.chk_enable_proxy.setChecked(proxy.get("enabled", False))
@@ -281,6 +293,8 @@ class SettingsView(QWidget):
             "initial_fetch_limit": self.spin_fetch_limit.value(),
             "max_speed_kb": self.spin_speed.value(),
             "forum_auto_separation": self.chk_forum_sep.isChecked(),
+            "rename_duplicates": self.chk_rename_duplicates.isChecked(),
+            "use_message_date": self.chk_use_msg_date.isChecked(),
             "proxy": {
                 "enabled": self.chk_enable_proxy.isChecked(),
                 "type": self.combo_proxy_type.currentText(),
