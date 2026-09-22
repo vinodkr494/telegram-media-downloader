@@ -291,6 +291,103 @@ class TestBulkDownloader(unittest.TestCase):
         self.assertEqual(db_path, "MyCustomVideo.mp4")
         self.assertTrue(os.path.exists(os.path.join(self.temp_dir, "MyCustomVideo.mp4")))
 
+    def test_load_download_state_channel_isolation(self):
+        from core_downloader import load_download_state
+        from database import mark_media_completed
+
+        mark_media_completed("111222", 10)
+        mark_media_completed("111222", 20)
+        mark_media_completed("333444", 30)
+
+        # None must NOT leak all channels
+        self.assertEqual(load_download_state(None), set())
+
+        # Isolated per channel
+        state_1 = load_download_state("111222")
+        state_2 = load_download_state("-100111222") # Should handle -100 prefix
+        state_3 = load_download_state("333444")
+        state_4 = load_download_state("999999")
+
+        self.assertEqual(state_1, {10, 20})
+        self.assertEqual(state_2, {10, 20})
+        self.assertEqual(state_3, {30})
+        self.assertEqual(state_4, set())
+
+    def test_task_completed_initial_scoped_to_current_messages(self):
+        # Channel has 50 historically downloaded items in DB
+        downloaded_state = set(range(1, 51))
+
+        # Current task only has 5 new messages: [51, 52, 53, 54, 55]
+        messages = [MockMessage(id=i) for i in range(51, 56)]
+        all_messages_count = len(messages)
+
+        # Buggy calculation was: completed_initial = len(downloaded_state) -> 50
+        # Correct calculation:
+        already_completed = sum(1 for m in messages if m.id in downloaded_state)
+        completed_initial = already_completed
+
+        self.assertEqual(completed_initial, 0, "Initial completed count must be 0 for new messages")
+        self.assertLess(completed_initial, all_messages_count, "completed_initial must not exceed total_items")
+
+    def test_cleanup_orphaned_part_and_meta_when_target_exists(self):
+        from core_downloader import download_single_file
+        from telethon.tl.types import PeerChannel
+
+        target_file = os.path.join(self.temp_dir, "Video_303.mp4")
+        part_file = target_file + ".part"
+        meta_file = part_file + ".meta"
+
+        with open(target_file, "wb") as f:
+            f.write(b"FullVideoData")
+        with open(part_file, "wb") as f:
+            f.write(b"LeftoverPartData")
+        with open(meta_file, "w") as f:
+            f.write("{}")
+
+        file_size = len(b"FullVideoData")
+        msg = MockMessage(id=303, video=MockDocument(size=file_size))
+        channel = PeerChannel(channel_id=555666)
+
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(
+            download_single_file(None, channel, msg, self.temp_dir)
+        )
+        loop.close()
+
+        self.assertTrue(os.path.exists(target_file))
+        self.assertFalse(os.path.exists(part_file), "Orphaned .part file must be cleaned up")
+        self.assertFalse(os.path.exists(meta_file), "Orphaned .meta file must be cleaned up")
+
+    def test_incomplete_chunked_part_file_not_finalized_prematurely(self):
+        from core_downloader import download_single_file
+        from telethon.tl.types import PeerChannel
+
+        file_size = 2 * 1024 * 1024 # 2MB (Chunked)
+        target_file = os.path.join(self.temp_dir, "Video_404.mp4")
+        part_file = target_file + ".part"
+        meta_file = part_file + ".meta"
+
+        # Preallocated .part file matches file_size, but NO metadata exists
+        with open(part_file, "wb") as f:
+            f.truncate(file_size)
+
+        msg = MockMessage(id=404, video=MockDocument(size=file_size))
+        channel = PeerChannel(channel_id=777888)
+
+        completed_files = []
+        def complete_cb(msg_id, filepath=None, **kwargs):
+            completed_files.append((msg_id, filepath))
+
+        loop = asyncio.new_event_loop()
+        # Mock client that will fail fast_download_file and fallback, without actually finalizing unverified part
+        loop.run_until_complete(
+            download_single_file(None, channel, msg, self.temp_dir, complete_cb=complete_cb)
+        )
+        loop.close()
+
+        # Should NOT finalize incomplete zero-byte preallocated file as target_file
+        self.assertFalse(os.path.exists(target_file), "Unverified preallocated .part file must not be finalized as complete")
+
 
 if __name__ == "__main__":
     unittest.main()

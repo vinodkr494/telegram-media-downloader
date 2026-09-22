@@ -43,12 +43,6 @@ def _save_meta(meta_path, file_size, chunk_size, total_parts, completed_parts):
 
 def _atomic_finalize_sync(temp_path, target_path, meta_path=None):
     """Atomically renames temp_path to target_path with retries for Windows file locks."""
-    if meta_path and os.path.exists(meta_path):
-        try:
-            os.remove(meta_path)
-        except Exception:
-            pass
-
     for attempt in range(5):
         try:
             if os.path.exists(target_path):
@@ -57,6 +51,12 @@ def _atomic_finalize_sync(temp_path, target_path, meta_path=None):
                 except Exception:
                     pass
             os.replace(temp_path, target_path)
+            # Remove meta_path only after temp_path is successfully renamed to target_path
+            if meta_path and os.path.exists(meta_path):
+                try:
+                    os.remove(meta_path)
+                except Exception:
+                    pass
             return True
         except (PermissionError, OSError) as e:
             if attempt < 4:
@@ -68,12 +68,6 @@ def _atomic_finalize_sync(temp_path, target_path, meta_path=None):
 
 async def _atomic_finalize_async(temp_path, target_path, meta_path=None):
     """Async atomic rename with retries for Windows file locks."""
-    if meta_path and os.path.exists(meta_path):
-        try:
-            os.remove(meta_path)
-        except Exception:
-            pass
-
     for attempt in range(5):
         try:
             if os.path.exists(target_path):
@@ -82,6 +76,12 @@ async def _atomic_finalize_async(temp_path, target_path, meta_path=None):
                 except Exception:
                     pass
             os.replace(temp_path, target_path)
+            # Remove meta_path only after temp_path is successfully renamed to target_path
+            if meta_path and os.path.exists(meta_path):
+                try:
+                    os.remove(meta_path)
+                except Exception:
+                    pass
             return True
         except (PermissionError, OSError) as e:
             if attempt < 4:
@@ -109,8 +109,13 @@ async def _download_part(client, location, offset, limit, dc_id=None):
             raise
         except Exception as e:
             if attempt < 4:
-                wait = getattr(e, 'seconds', 1.0)
-                await asyncio.sleep(min(wait, 3.0))
+                from telethon.errors import FloodWaitError
+                if isinstance(e, FloodWaitError):
+                    wait = getattr(e, 'seconds', 1.0)
+                    await asyncio.sleep(wait)
+                else:
+                    wait = getattr(e, 'seconds', 1.0)
+                    await asyncio.sleep(min(wait, 3.0))
             else:
                 raise e
 
@@ -154,8 +159,8 @@ async def fast_download_file(client, location, target_path, file_size, dc_id=Non
         existing_part_size = os.path.getsize(temp_path)
         if existing_part_size == file_size:
             completed_parts = _load_meta(meta_path, file_size, total_parts)
-            # If all parts are completed, or if size matches and no meta exists (legacy complete .part)
-            if len(completed_parts) == total_parts or (not os.path.exists(meta_path) and not completed_parts):
+            # Only finalize if metadata confirms all parts are genuinely completed
+            if total_parts > 0 and len(completed_parts) == total_parts:
                 await _atomic_finalize_async(temp_path, target_path, meta_path)
                 return True
         else:
@@ -171,7 +176,7 @@ async def fast_download_file(client, location, target_path, file_size, dc_id=Non
         _save_meta(meta_path, file_size, CHUNK_SIZE, total_parts, completed_parts)
 
     missing_parts = [idx for idx in range(total_parts) if idx not in completed_parts]
-    if not missing_parts:
+    if not missing_parts and total_parts > 0:
         await _atomic_finalize_async(temp_path, target_path, meta_path)
         return True
 
@@ -244,6 +249,7 @@ async def fast_download_file(client, location, target_path, file_size, dc_id=Non
 
             queue.task_done()
 
+    tasks = []
     try:
         tasks = [asyncio.create_task(worker()) for _ in range(min(workers, len(missing_parts)))]
         await asyncio.gather(*tasks)
@@ -255,8 +261,19 @@ async def fast_download_file(client, location, target_path, file_size, dc_id=Non
         _save_meta(meta_path, file_size, CHUNK_SIZE, total_parts, completed_parts)
         raise e
     finally:
-        file_handle.flush()
-        file_handle.close()
+        for t in tasks:
+            if not t.done():
+                t.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            file_handle.flush()
+        except Exception:
+            pass
+        try:
+            file_handle.close()
+        except Exception:
+            pass
 
     if cancel_event and cancel_event.is_set():
         _save_meta(meta_path, file_size, CHUNK_SIZE, total_parts, completed_parts)

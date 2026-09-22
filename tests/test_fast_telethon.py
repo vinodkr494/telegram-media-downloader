@@ -189,6 +189,69 @@ class TestFastTelethon(unittest.TestCase):
         self.assertFalse(os.path.exists(part_path))
         self.assertFalse(os.path.exists(meta_path))
 
+    def test_preallocated_part_without_meta_is_not_falsely_finalized(self):
+        target_path = os.path.join(self.temp_dir, "prealloc.mp4")
+        part_path = target_path + ".part"
+        meta_path = part_path + ".meta"
+        file_size = CHUNK_SIZE * 2
+
+        # Part file exists and is full size due to OS preallocation/truncation, but NO meta exists
+        with open(part_path, "wb") as f:
+            f.truncate(file_size)
+
+        requested_offsets = []
+        chunk_data = {0: b"1" * CHUNK_SIZE, CHUNK_SIZE: b"2" * CHUNK_SIZE}
+        client = MockClient(requested_offsets, chunk_data)
+        loc = MockInputLocation()
+
+        loop = asyncio.new_event_loop()
+        success = loop.run_until_complete(
+            fast_download_file(client, loc, target_path, file_size, dc_id=1, workers=2)
+        )
+        loop.close()
+
+        self.assertTrue(success)
+        # All chunks should have been requested because missing meta means 0 completed parts
+        self.assertEqual(sorted(requested_offsets), [0, CHUNK_SIZE])
+        self.assertTrue(os.path.exists(target_path))
+
+    def test_worker_cancellation_on_error_prevents_io_error(self):
+        target_path = os.path.join(self.temp_dir, "error_test.mp4")
+        file_size = CHUNK_SIZE * 4
+
+        class FailingSender(MockSender):
+            async def send(self, req):
+                if req.offset == 0:
+                    raise RuntimeError("Simulated network drop")
+                await asyncio.sleep(0.1)
+                return await super().send(req)
+
+        class FailingClient(MockClient):
+            def __init__(self, requested_offsets, chunk_data):
+                super().__init__(requested_offsets, chunk_data)
+                self.sender = FailingSender(requested_offsets, chunk_data)
+
+            async def __call__(self, req):
+                if req.offset == 0:
+                    raise RuntimeError("Simulated network drop")
+                await asyncio.sleep(0.1)
+                return await super().__call__(req)
+
+        requested_offsets = []
+        chunk_data = {i * CHUNK_SIZE: b"X" * CHUNK_SIZE for i in range(4)}
+        client = FailingClient(requested_offsets, chunk_data)
+        loc = MockInputLocation()
+
+        loop = asyncio.new_event_loop()
+        with self.assertRaises(RuntimeError):
+            loop.run_until_complete(
+                fast_download_file(client, loc, target_path, file_size, dc_id=1, workers=2)
+            )
+        loop.close()
+
+        self.assertFalse(os.path.exists(target_path))
+
 
 if __name__ == "__main__":
     unittest.main()
+

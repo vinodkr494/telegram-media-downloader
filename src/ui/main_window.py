@@ -528,14 +528,13 @@ class MainWindow(QMainWindow):
                 
                 is_paused = bool(t.get("paused", True))
                 
-                # If it's paused, just show the card (no network)
                 if is_paused:
-                    # In UI, we don't 'clean' the ID anymore, we use what's in the task
-                    # but ensure we handle the -100 prefix consistently.
-                    ch_id_full = str(chan)
+                    ch_clean = str(chan).replace("-100", "", 1) if str(chan).startswith("-100") else str(chan)
                     m_id = t.get('media_id', 6)
+                    topic = t.get('topic_id')
+                    task_key = f"{ch_clean}_{topic}_{m_id}" if topic else f"{ch_clean}_{m_id}"
                     self.add_download_card({
-                        "task_id": f"{ch_id_full}_{m_id}",
+                        "task_id": task_key,
                         "title": t.get("title") or f"Saved Task: {chan}",
                         "is_paused": True,
                         "download_path": t.get("download_path") or cfg.get("download_path", "downloads"),

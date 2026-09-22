@@ -42,7 +42,13 @@ This document tracks the vision and high-level goals for the major **v3.0.0** re
 
 ## ✅ Roadmap
 
-- **Current Version**: 2.8.2
+- **Current Version**: 2.8.3
+- **Completed in v2.8.3**:
+  - [x] **Premature Queue Completion Fix**: Scoped initial completion counters strictly to the current task's messages.
+  - [x] **Channel Isolation**: Isolated channel download states to prevent cross-channel ID collisions.
+  - [x] **Guarded Preallocated `.part` Finalization**: Require verified `.meta` chunk progress before finalizing full-sized `.part` files.
+  - [x] **Orphaned `.part` & `.meta` File Cleanup**: Cleaned up leftover temporary and meta files on completion, fallback, or existing target file.
+  - [x] **FloodWait & Worker Lifecycle**: Honored full FloodWait durations and safely cancelled background tasks prior to closing file handles.
 - **Completed in v2.8.2**:
   - [x] **Resuming Stall Fix**: Added 25s MTProto request timeouts and retry recovery to prevent worker coroutines and concurrency slots from hanging indefinitely.
   - [x] **Complete `.part` Finalization**: Instant detection and atomic replacement of full-sized `.part` files with Windows file-lock retry handling.

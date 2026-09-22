@@ -150,6 +150,13 @@ Go to **Settings → Download Limit** to adjust how many files download simultan
 
 ## Changelog
 
+### v2.8.3
+- 🎯 **Fixed Premature Queue Completion**: Fixed queue download cards immediately showing as "Completed ✓" when downloading multiple channels or batches. Scoped task initial completion counters strictly to the current task's message set instead of counting all historical channel downloads.
+- 🔒 **Channel State & ID Isolation**: Isolated channel download states to prevent sequential message ID collisions between channels.
+- 🛡️ **Guarded Preallocated `.part` Finalization**: Prevented FastTelethon preallocated full-size `.part` files from falsely being finalized as complete without verified `.part.meta` chunk metadata.
+- 🧹 **Orphaned `.part` & `.meta` File Cleanup**: Automatically cleans up residual `.part` and `.meta` files upon completion, fallback, or when the target file already exists.
+- ⚡ **FloodWait Recovery & Worker Teardown**: Fully honors Telegram `FloodWaitError` durations and gracefully cancels background workers before closing file handles.
+
 ### v2.8.2
 - ⚡ **Resuming Stall & Concurrency Deadlock Fix**: Resolved the critical issue where parallel downloads permanently froze at `Resuming...` with 0 B/s due to missing MTProto request timeouts. Added a 25s timeout with exponential retry backoff to prevent dropped connections from locking worker coroutines and exhausting concurrency slots.
 - 📦 **Instant Complete `.part` File Finalization**: Implemented instant detection and atomic finalization for `.part` files matching the expected Telegram media size. Automatically flushes file handles, atomically replaces `.part` to final filenames with Windows file-lock retry handling, and marks database records completed.

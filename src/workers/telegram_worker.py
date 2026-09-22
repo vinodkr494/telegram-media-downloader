@@ -357,7 +357,8 @@ class TelegramWorker(QThread):
             # For channels, we must include the -100 prefix for stable global IDs.
             from telethon.utils import get_peer_id
             resolved_chan_id = str(get_peer_id(channel))
-            task_id = f"{resolved_chan_id}_{topic_id}_{media_id}" if topic_id else f"{resolved_chan_id}_{media_id}"
+            ch_resolved_clean = resolved_chan_id.replace("-100", "", 1) if resolved_chan_id.startswith("-100") else resolved_chan_id
+            task_id = f"{ch_resolved_clean}_{topic_id}_{media_id}" if topic_id else f"{ch_resolved_clean}_{media_id}"
             
             # 🛡️ ID HIJACK: If we were started with a username/title, switch the tracker to use the numeric ID
             if original_task_id and original_task_id != task_id:
@@ -597,9 +598,10 @@ class TelegramWorker(QThread):
 
                 downloaded_state = actual_downloaded_state
             
+            already_completed_count = sum(1 for m in messages if m.id in downloaded_state)
             messages_to_download = [m for m in messages if m.id not in downloaded_state]
             total_items = all_messages_count
-            completed_initial = len(downloaded_state)
+            completed_initial = already_completed_count
 
             # 4. Emit the REAL metadata to update the placeholder card
             self.signals.channel_fetched.emit({
@@ -707,7 +709,7 @@ class TelegramWorker(QThread):
                         # Remove from active tasks using the stable numeric ID
                         try:
                             tkList = load_active_tasks()
-                            tkList = [tk for tk in tkList if not (str(tk.get("channel_input")) == resolved_chan_id and tk.get("media_id") == media_id and tk.get("topic_id") == topic_id)]
+                            tkList = [tk for tk in tkList if not (str(tk.get("channel_input", "")).replace("-100", "", 1) == ch_resolved_clean and tk.get("media_id") == media_id and tk.get("topic_id") == topic_id)]
                             save_active_tasks(tkList)
                         except Exception as e:
                             print(f"Error removing task: {e}")

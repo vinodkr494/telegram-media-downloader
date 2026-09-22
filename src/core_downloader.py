@@ -42,11 +42,11 @@ def save_active_tasks(tasks):
 
 def load_download_state(channel_id=None):
     # We return a set of msg_ids for a specific channel to ensure ID isolation
+    if not channel_id:
+        return set()
     res = get_completed_state_db()
-    if channel_id:
-        c_id = str(channel_id).replace("-100", "", 1)
-        return {msg_id for ch_id, msg_id in res if ch_id == c_id}
-    return {msg_id for ch_id, msg_id in res}
+    c_id = str(channel_id).replace("-100", "", 1)
+    return {msg_id for ch_id, msg_id in res if ch_id == c_id}
 
 def save_download_state(state):
     # This is usually called file-by-file in the worker via complete_cb
@@ -280,17 +280,40 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                 if os.path.exists(expected_filepath):
                     existing_size = os.path.getsize(expected_filepath)
                     if file_size and existing_size >= file_size:
+                        # Clean up any leftover orphaned .part or .meta files
+                        part_path = expected_filepath + ".part"
+                        meta_path = expected_filepath + ".part.meta"
+                        if os.path.exists(part_path):
+                            try: os.remove(part_path)
+                            except Exception: pass
+                        if os.path.exists(meta_path):
+                            try: os.remove(meta_path)
+                            except Exception: pass
                         if progress_cb:
                             progress_cb(message.id, existing_size, existing_size, speed_str="Skipped (Exists)")
                         if complete_cb:
                             complete_cb(message.id, filepath=expected_filepath)
                         return
 
-                # 2. Check if .part file already matches full expected size and can be finalized immediately
+                # 2. Check if .part file is genuinely fully downloaded and can be finalized
                 part_path = expected_filepath + ".part"
                 meta_path = expected_filepath + ".part.meta"
                 if os.path.exists(part_path) and file_size and os.path.getsize(part_path) == file_size:
-                    if _atomic_finalize_sync(part_path, expected_filepath, meta_path):
+                    can_finalize = False
+                    if file_size > 1024 * 1024 or os.path.exists(meta_path):
+                        # Chunked download: MUST verify with metadata that all chunks were completed
+                        if os.path.exists(meta_path):
+                            from utils.fast_telethon import CHUNK_SIZE, _load_meta
+                            import math
+                            total_parts = math.ceil(file_size / CHUNK_SIZE)
+                            completed_parts = _load_meta(meta_path, file_size, total_parts)
+                            if total_parts > 0 and len(completed_parts) == total_parts:
+                                can_finalize = True
+                    else:
+                        # Non-chunked small file where size matches
+                        can_finalize = True
+
+                    if can_finalize and _atomic_finalize_sync(part_path, expected_filepath, meta_path):
                         if progress_cb:
                             progress_cb(message.id, file_size, file_size, speed_str="Complete")
                         if complete_cb:
@@ -441,6 +464,16 @@ async def download_single_file(client, channel, message, folder_name, progress_c
                 
                 # 📝 Message-Media Linker: Save sidecar .txt if message has text
                 if file_path and os.path.exists(file_path):
+                    # Clean up any leftover orphaned .part and .meta files for this completed file
+                    part_f = file_path + ".part"
+                    meta_f = part_f + ".meta"
+                    if os.path.exists(part_f):
+                        try: os.remove(part_f)
+                        except Exception: pass
+                    if os.path.exists(meta_f):
+                        try: os.remove(meta_f)
+                        except Exception: pass
+
                     if use_message_date and getattr(message, 'date', None):
                         try:
                             mtime = message.date.timestamp()
